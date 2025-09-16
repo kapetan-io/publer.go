@@ -1,0 +1,338 @@
+package v1
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+)
+
+// MockServer provides a test HTTP server that mimics Publer API
+type MockServer struct {
+	mu               *sync.RWMutex
+	server           *httptest.Server
+	apiKey           string
+	workspaceID      string
+	jobDelay         time.Duration
+	jobs             map[string]*JobStatus
+	jobProgression   map[string][]JobStatus
+	jobProgressIndex map[string]int
+	posts            []Post
+	accounts         []Account
+	workspaces       []Workspace
+	responses        map[string]MockResponse
+	errorResponses   map[string]MockErrorResponse
+	callCounts       map[string]int
+}
+
+// MockResponse holds configured response data
+type MockResponse struct {
+	StatusCode int
+	Body       any
+}
+
+// MockErrorResponse holds configured error response data
+type MockErrorResponse struct {
+	StatusCode    int
+	Body          any
+	Headers       map[string]string
+	CallThreshold int // Return error after N calls
+	CallCount     int // Current call count for this endpoint
+}
+
+// SpawnMockServer creates and starts a new mock server instance
+func SpawnMockServer() *MockServer {
+	m := &MockServer{
+		mu:               &sync.RWMutex{},
+		apiKey:           "mock-api-key-" + strconv.FormatInt(time.Now().UnixNano(), 36),
+		workspaceID:      "mock-workspace-" + strconv.FormatInt(time.Now().UnixNano(), 36),
+		jobs:             make(map[string]*JobStatus),
+		jobProgression:   make(map[string][]JobStatus),
+		jobProgressIndex: make(map[string]int),
+		responses:        make(map[string]MockResponse),
+		errorResponses:   make(map[string]MockErrorResponse),
+		callCounts:       make(map[string]int),
+	}
+
+	m.server = httptest.NewServer(http.HandlerFunc(m.handleRequest))
+	return m
+}
+
+// Client returns a new Client instance configured to use this mock server
+func (m *MockServer) Client() *Client {
+	client, _ := NewClient(Config{
+		APIKey:      m.apiKey,
+		WorkspaceID: m.workspaceID,
+		BaseURL:     m.server.URL + "/api/v1/",
+	})
+	return client
+}
+
+// Stop stops the mock HTTP server
+func (m *MockServer) Stop() error {
+	if m.server == nil {
+		return fmt.Errorf("server not started")
+	}
+
+	m.server.Close()
+	m.server = nil
+	return nil
+}
+
+// Reset clears all mock server state for next test
+func (m *MockServer) Reset() {
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.jobs = make(map[string]*JobStatus)
+	m.jobProgression = make(map[string][]JobStatus)
+	m.jobProgressIndex = make(map[string]int)
+	m.posts = []Post{}
+	m.accounts = []Account{}
+	m.workspaces = []Workspace{}
+	m.responses = make(map[string]MockResponse)
+	m.errorResponses = make(map[string]MockErrorResponse)
+	m.callCounts = make(map[string]int)
+	m.jobDelay = 0
+}
+
+// SetResponse configures expected response for specific endpoint
+func (m *MockServer) SetResponse(method, path string, statusCode int, body any) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	key := fmt.Sprintf("%s %s", method, path)
+	m.responses[key] = MockResponse{
+		StatusCode: statusCode,
+		Body:       body,
+	}
+}
+
+// SetErrorResponse configures error response after N calls to endpoint
+func (m *MockServer) SetErrorResponse(method, path string, callThreshold int, statusCode int, body any, headers map[string]string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	key := fmt.Sprintf("%s %s", method, path)
+	m.errorResponses[key] = MockErrorResponse{
+		StatusCode:    statusCode,
+		Body:          body,
+		Headers:       headers,
+		CallThreshold: callThreshold,
+		CallCount:     0,
+	}
+}
+
+// SetJobStatus configures job status response for job ID
+func (m *MockServer) SetJobStatus(jobID, status string, progress int, result *JobResult, err string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.jobs[jobID] = &JobStatus{
+		ID:       jobID,
+		Status:   status,
+		Progress: progress,
+		Result:   result,
+		Error:    err,
+	}
+}
+
+// SetJobProgression configures automatic job state progression
+func (m *MockServer) SetJobProgression(jobID string, states []JobStatus) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.jobProgression[jobID] = states
+	m.jobProgressIndex[jobID] = 0
+}
+
+// AdvanceJobState manually advances job to next state in progression
+func (m *MockServer) AdvanceJobState(jobID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	states, exists := m.jobProgression[jobID]
+	if !exists {
+		return false
+	}
+
+	index := m.jobProgressIndex[jobID]
+	if index < len(states)-1 {
+		m.jobProgressIndex[jobID]++
+		m.jobs[jobID] = &states[m.jobProgressIndex[jobID]]
+		return true
+	}
+
+	return false
+}
+
+// SetDelay adds artificial delay to responses (bypassed in fast test mode)
+func (m *MockServer) SetDelay(delay time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.jobDelay = delay
+}
+
+// AddPosts adds posts to mock data for listing endpoints
+func (m *MockServer) AddPosts(posts []Post) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.posts = append(m.posts, posts...)
+}
+
+// AddAccounts adds accounts to mock data for listing endpoints
+func (m *MockServer) AddAccounts(accounts []Account) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.accounts = append(m.accounts, accounts...)
+}
+
+// AddWorkspaces adds workspaces to mock data for listing endpoints
+func (m *MockServer) AddWorkspaces(workspaces []Workspace) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.workspaces = append(m.workspaces, workspaces...)
+}
+
+// handleRequest routes requests to appropriate handlers
+func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
+	// Apply delay before acquiring lock to avoid holding lock during sleep
+	m.mu.RLock()
+	delay := m.jobDelay
+	m.mu.RUnlock()
+
+	if delay > 0 {
+		time.Sleep(delay)
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Validate authentication headers
+	authHeader := r.Header.Get("Authorization")
+	expectedAuth := "Bearer-API " + m.apiKey
+	if authHeader != expectedAuth {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "unauthorized",
+			Message: "Missing or invalid API key",
+		})
+		return
+	}
+
+	workspaceHeader := r.Header.Get("Publer-Workspace-Id")
+	if workspaceHeader != m.workspaceID {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Missing or invalid workspace ID",
+		})
+		return
+	}
+
+	// Track call counts
+	key := fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+	m.callCounts[key]++
+
+	// Check for error response configuration
+	if errResp, exists := m.errorResponses[key]; exists {
+		if m.callCounts[key] >= errResp.CallThreshold {
+			// Write error headers
+			for k, v := range errResp.Headers {
+				w.Header().Set(k, v)
+			}
+
+			w.WriteHeader(errResp.StatusCode)
+			if errResp.Body != nil {
+				json.NewEncoder(w).Encode(errResp.Body)
+			}
+			return
+		}
+	}
+
+	// Check for configured response
+	if resp, exists := m.responses[key]; exists {
+		w.WriteHeader(resp.StatusCode)
+		if resp.Body != nil {
+			json.NewEncoder(w).Encode(resp.Body)
+		}
+		return
+	}
+
+	// Handle job status requests
+	if strings.HasPrefix(r.URL.Path, "/api/v1/jobs/") {
+		parts := strings.Split(r.URL.Path, "/")
+		if len(parts) >= 5 {
+			jobID := parts[4]
+
+			// Check job progression first
+			if states, exists := m.jobProgression[jobID]; exists {
+				index := m.jobProgressIndex[jobID]
+				if index < len(states) {
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(states[index])
+					return
+				}
+			}
+
+			// Check regular job status
+			if job, exists := m.jobs[jobID]; exists {
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(job)
+				return
+			}
+		}
+	}
+
+	// Handle posts listing with pagination
+	if r.Method == "GET" && r.URL.Path == "/api/v1/posts" {
+		pageStr := r.URL.Query().Get("page")
+		page := 1
+		if pageStr != "" {
+			page, _ = strconv.Atoi(pageStr)
+		}
+
+		perPage := 10
+		total := len(m.posts)
+		totalPages := (total + perPage - 1) / perPage
+
+		start := (page - 1) * perPage
+		end := start + perPage
+		if end > total {
+			end = total
+		}
+
+		var items []Post
+		if start < total {
+			items = m.posts[start:end]
+		} else {
+			items = []Post{}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(Page[Post]{
+			Items:      items,
+			Total:      total,
+			Page:       page,
+			PerPage:    perPage,
+			TotalPages: totalPages,
+		})
+		return
+	}
+
+	// Default 404
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(ErrorResponse{
+		Error:   "not_found",
+		Message: "Endpoint not found",
+	})
+}
