@@ -67,7 +67,7 @@ type Client struct {
 func NewClient(config Config) (*Client, error)
 
 // do performs HTTP requests with authentication
-func (c *Client) do(ctx context.Context, method, path string, body interface{}, result interface{}) error
+func (c *Client) do(ctx context.Context, method, path string, body any, result any) error
 ```
 
 **Function Responsibilities:**
@@ -242,9 +242,11 @@ func (it *GenericIterator[T]) Err() error
 **Required imports:**
 ```go
 import (
+    "context"
     "encoding/json"
     "net/http"
     "net/http/httptest"
+    "sync"
     "time"
     "fmt"
     "strings"
@@ -256,21 +258,33 @@ import (
 ```go
 // MockServer provides a test HTTP server that mimics Publer API
 type MockServer struct {
-    server      *httptest.Server
-    scenario    string
-    rateLimit   RateLimitConfig
-    jobDelay    time.Duration
-    jobs        map[string]*JobStatus
-    posts       []Post
-    accounts    []Account
-    workspaces  []Workspace
+    mu                *sync.RWMutex
+    server            *httptest.Server
+    jobDelay          time.Duration
+    jobs              map[string]*JobStatus
+    jobProgression    map[string][]JobStatus
+    jobProgressIndex  map[string]int
+    posts             []Post
+    accounts          []Account
+    workspaces        []Workspace
+    responses         map[string]MockResponse
+    errorResponses    map[string]MockErrorResponse
+    callCounts        map[string]int
 }
 
-// RateLimitConfig holds rate limit simulation settings
-type RateLimitConfig struct {
-    Limit     int
-    Remaining int
-    Reset     time.Time
+// MockResponse holds configured response data
+type MockResponse struct {
+    StatusCode int
+    Body       any
+}
+
+// MockErrorResponse holds configured error response data
+type MockErrorResponse struct {
+    StatusCode    int
+    Body          any
+    Headers       map[string]string
+    CallThreshold int // Return error after N calls
+    CallCount     int // Current call count for this endpoint
 }
 
 // NewMockServer creates a new mock server instance
@@ -286,15 +300,21 @@ func (m *MockServer) Stop() error
 func (m *MockServer) Reset()
 
 // SetResponse configures expected response for specific endpoint
-func (m *MockServer) SetResponse(method, path string, statusCode int, body interface{})
+func (m *MockServer) SetResponse(method, path string, statusCode int, body any)
 
-// SetRateLimit configures rate limit headers for next response
-func (m *MockServer) SetRateLimit(limit, remaining int, reset time.Time)
+// SetErrorResponse configures error response after N calls to endpoint
+func (m *MockServer) SetErrorResponse(method, path string, callThreshold int, statusCode int, body any, headers map[string]string)
 
 // SetJobStatus configures job status response for job ID
 func (m *MockServer) SetJobStatus(jobID, status string, progress int, result *JobResult, err string)
 
-// SetDelay adds artificial delay to responses
+// SetJobProgression configures automatic job state progression
+func (m *MockServer) SetJobProgression(jobID string, states []JobStatus)
+
+// AdvanceJobState manually advances job to next state in progression
+func (m *MockServer) AdvanceJobState(jobID string) bool
+
+// SetDelay adds artificial delay to responses (bypassed in fast test mode)
 func (m *MockServer) SetDelay(delay time.Duration)
 
 // AddPosts adds posts to mock data for listing endpoints
@@ -317,10 +337,16 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request)
 - Validate authentication headers (unless explicitly disabled)
 - Support pagination metadata in responses
 - Always return full pages to caller (API doesn't support configurable page sizes)
+- **Job State Management**: Track job progression with state machine validation
+- **Error Simulation**: Support call-based error responses with custom headers (e.g., return 429 rate limit error on 3rd call)
+- **Call Tracking**: Track call counts per endpoint to trigger errors at specified thresholds
+- **Thread Safety**: Use mutex for concurrent access to server state
 
-**Mock Server Usage Pattern:**
+**Mock Server Usage Patterns:**
+
+**Basic Test Setup:**
 ```go
-// Each test starts with reset
+// Each test starts with reset (clears all state and call counts)
 server.Reset()
 
 // Configure expected responses
@@ -329,16 +355,72 @@ server.SetResponse("GET", "/api/v1/posts", 200, ListPostsResponse{
     Total: 1, Page: 1, PerPage: 10, TotalPages: 1,
 })
 
-// Configure rate limiting if needed
-server.SetRateLimit(100, 50, time.Now().Add(time.Minute))
+// Configure error after N successful calls (optional)
+server.SetErrorResponse("POST", "/api/v1/posts", 5, 429, map[string]any{
+    "error": "rate_limit_exceeded",
+}, map[string]string{
+    "X-RateLimit-Limit":     "100",
+    "X-RateLimit-Remaining": "0",
+})
+```
 
-// Configure job status progression
-server.SetJobStatus("job-123", "working", 50, nil, "")
-// Later in test:
-server.SetJobStatus("job-123", "completed", 100, &JobResult{PostIDs: []string{"post-456"}}, "")
+**Job Polling with State Progression:**
+```go
+// Configure automatic job progression
+server.SetJobProgression("job-123", []JobStatus{
+    {ID: "job-123", Status: "pending", Progress: 0},
+    {ID: "job-123", Status: "working", Progress: 50},
+    {ID: "job-123", Status: "completed", Progress: 100, Result: &JobResult{PostIDs: []string{"post-456"}}},
+})
 
-// Add artificial delay for timeout testing
-server.SetDelay(3 * time.Second)
+// Test advances job state explicitly
+server.AdvanceJobState("job-123") // pending -> working
+server.AdvanceJobState("job-123") // working -> completed
+```
+
+**Rate Limit Error Simulation:**
+```go
+// First configure the successful response for calls 1-2
+server.SetResponse("GET", "/api/v1/posts", 200, map[string]any{
+    "posts": []Post{{ID: "1", Text: "Hello"}},
+    "total": 1, "page": 1, "per_page": 10, "total_pages": 1,
+})
+
+// Then configure error response starting on call 3
+server.SetErrorResponse("GET", "/api/v1/posts", 3, 429, map[string]any{
+    "error": "rate_limit_exceeded",
+    "message": "Too many requests",
+}, map[string]string{
+    "X-RateLimit-Limit":     "100",
+    "X-RateLimit-Remaining": "0", 
+    "X-RateLimit-Reset":     "1640995200", // Unix timestamp
+})
+
+// Calls 1-2 return 200 with posts data, call 3+ returns 429 rate limit error
+```
+
+**Context-Based Polling Pattern:**
+```go
+// All polling should use bounded context
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+// Polling with state machine validation
+for {
+    select {
+    case <-ctx.Done():
+        return ctx.Err() // Prevents infinite loops
+    default:
+        job, err := client.GetJobStatus(ctx, jobID)
+        if err != nil {
+            return err
+        }
+        if job.Status == "completed" || job.Status == "failed" {
+            return nil // Terminal states
+        }
+        server.AdvanceJobState(jobID) // Test controls progression
+    }
+}
 ```
 
 ### Testing Requirements
@@ -376,6 +458,29 @@ func TestMockServer(t *testing.T)        // NOTE: Do NOT use t.Parallel()
 - Page size is fixed by API, not configurable by client
 - Context cancellation in Next() should return false and set Err() to context.Cancelled
 
+### Advanced Testing Strategies
+
+**Job Polling Infinite Loop Prevention:**
+- Use `context.WithTimeout()` for all polling operations (5-10 second max)
+- Implement state machine validation: `pending → working → completed/failed`
+- Test-controlled progression via `AdvanceJobState()` instead of time-based
+- Iteration counter with 100 poll maximum as safety net
+- Exponential backoff: 10ms → 20ms → 40ms → ... → 1s max
+
+**Error Response Test Strategies:**
+- Simulate any HTTP error (429 rate limit, 500 server error, 404 not found) after N successful calls
+- Configure custom headers for rate limit errors (X-RateLimit-*) or other metadata
+- No actual timing delays - purely call-count based
+- Reset call counts with `server.Reset()` between tests
+
+**Mock Server State Management:**
+- Thread-safe with mutex protection for concurrent access
+- State isolation via `Reset()` method clears all server state and call counts
+- Resource management: Always use `defer server.Stop()` in tests
+- Job progression tracking with automatic state advancement
+- Configurable response mapping per endpoint
+- Call count tracking per endpoint for error threshold simulation
+
 ### Validation Commands
 After implementation, run these commands to verify:
 - `go build ./v1`
@@ -390,4 +495,5 @@ This phase is complete when:
 4. Generic iterator works with any type using Page[T]
 5. Mock server can start, handle requests, and return configured responses
 6. All tests pass without race conditions
-7. Code follows the established patterns for subsequent phases
+7. Test excercise SetErrorResponse() and SetResponse()
+8. Code follows the established patterns for subsequent phases

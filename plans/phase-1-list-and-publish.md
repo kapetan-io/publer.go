@@ -131,8 +131,16 @@ type GetJobStatusResponse struct {
 // GetJobStatus checks status of async job
 func (c *Client) GetJobStatus(ctx context.Context, req GetJobStatusRequest, resp *GetJobStatusResponse) error
 
-// WaitForJob polls job status until completion
-func (c *Client) WaitForJob(ctx context.Context, jobID string, result *JobResult) error
+// WaitOptions configures job polling behavior
+type WaitOptions struct {
+    JobID        string
+    InitialDelay time.Duration
+    MaxDelay     time.Duration
+    Jitter       time.Duration
+}
+
+// WaitForJob polls job status until completion with configurable timing
+func (c *Client) WaitForJob(ctx context.Context, opts WaitOptions, result *JobResult) error 
 ```
 
 **Function Responsibilities:**
@@ -142,16 +150,31 @@ func (c *Client) WaitForJob(ctx context.Context, jobID string, result *JobResult
 - Return appropriate errors for job failures, include error info in JobResult
 
 **WaitForJob Implementation Details:**
-- **Initial delay**: 1 second
-- **Backoff strategy**: Exponential with jitter (delay *= 2, max 30 seconds)
+- **Initial delay**: Configurable via WaitOptions.InitialDelay (defaults to 1 second if zero)
+- **Max delay**: Configurable via WaitOptions.MaxDelay (defaults to 30 seconds if zero)
+- **Jitter**: Configurable via WaitOptions.Jitter (defaults to 500ms if zero)
+- **Backoff strategy**: Exponential with configurable jitter (delay *= 2, up to max)
 - **Maximum attempts**: No limit (relies on context timeout)
-- **Jitter**: Add random 0-500ms to prevent thundering herd
 - **Final statuses**: "completed", "failed", "cancelled"
 - **Continue polling on**: "pending", "working", "processing"
 - **Context handling**: Return context.Err() if context is cancelled
 - **Implementation pattern**:
 ```go
-delay := time.Second
+// Set defaults if not provided
+initialDelay := opts.InitialDelay
+if initialDelay == 0 {
+    initialDelay = time.Second
+}
+maxDelay := opts.MaxDelay
+if maxDelay == 0 {
+    maxDelay = 30 * time.Second
+}
+jitter := opts.Jitter
+if jitter == 0 {
+    jitter = 500 * time.Millisecond
+}
+
+delay := initialDelay
 for {
     select {
     case <-ctx.Done():
@@ -160,10 +183,13 @@ for {
         // Check job status
         // If final status, return
         // Otherwise continue
-        if delay < 30*time.Second {
+        if delay < maxDelay {
             delay *= 2
+            if delay > maxDelay {
+                delay = maxDelay
+            }
         }
-        delay += time.Duration(rand.Intn(500)) * time.Millisecond
+        delay += time.Duration(rand.Intn(int(jitter/time.Millisecond))) * time.Millisecond
     }
 }
 ```
@@ -174,6 +200,8 @@ for {
 
 ```go
 // handleListPosts handles GET /api/v1/posts
+// This method provides default behavior when SetResponse() hasn't been called.
+// If SetResponse() is used, it overrides this default handler.
 func (m *MockServer) handleListPosts(w http.ResponseWriter, r *http.Request)
 
 // handlePublishPost handles POST /api/v1/posts/schedule/publish
@@ -187,10 +215,12 @@ func (m *MockServer) SetJobDelay(delay time.Duration)
 ```
 
 **Function Responsibilities:**
-- Simulate paginated post responses
-- Create job IDs for post publishing
-- Simulate job progression with configurable delays
-- Return appropriate job status based on scenario
+- **Default Handlers**: Provide reasonable defaults when SetResponse() hasn't been called
+- **SetResponse() Priority**: When SetResponse() is configured, it overrides default handlers
+- **Fallback Behavior**: Default handlers return empty lists, success responses, etc.
+- **Job ID Generation**: Create unique job IDs for post publishing operations
+- **Job Progression**: Handle job state advancement via SetJobProgression() or AdvanceJobState()
+- **Flexible Configuration**: Support both explicit SetResponse() and automatic defaults
 
 ### Testing Requirements
 **CRITICAL**: Do NOT use `t.Parallel()` in any tests

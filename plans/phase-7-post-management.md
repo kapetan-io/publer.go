@@ -108,7 +108,7 @@ func (m *MockServer) handleUpdatePost(w http.ResponseWriter, r *http.Request)
 func (m *MockServer) handleDeletePost(w http.ResponseWriter, r *http.Request)
 
 // UpdateMockPost updates a post in mock data
-func (m *MockServer) UpdateMockPost(id string, updates map[string]interface{})
+func (m *MockServer) UpdateMockPost(id string, updates map[string]any)
 ```
 
 **Function Responsibilities:**

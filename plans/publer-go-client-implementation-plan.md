@@ -89,7 +89,7 @@ func NewMockServer() *MockServer
 func (m *MockServer) Start() (string, error)
 func (m *MockServer) Stop() error
 func (m *MockServer) Reset()
-func (m *MockServer) SetResponse(method, path string, statusCode int, body interface{})
+func (m *MockServer) SetResponse(method, path string, statusCode int, body any)
 func (m *MockServer) SetRateLimit(limit, remaining int, reset time.Time)
 func (m *MockServer) SetJobStatus(jobID, status string, progress int, result *JobResult, err string)
 func (m *MockServer) SetDelay(delay time.Duration)
@@ -138,7 +138,7 @@ type Client struct {
 func NewClient(config Config) (*Client, error)
 
 // do performs HTTP requests with authentication
-func (c *Client) do(ctx context.Context, method, path string, body interface{}, result interface{}) error
+func (c *Client) do(ctx context.Context, method, path string, body any, result any) error
 ```
 
 **Function Responsibilities:**
@@ -243,7 +243,6 @@ func (it *GenericIterator[T]) Err() error
 // MockServer provides a test HTTP server that mimics Publer API
 type MockServer struct {
     server      *httptest.Server
-    scenario    string
     rateLimit   RateLimitConfig
     jobDelay    time.Duration
     jobs        map[string]*JobStatus
@@ -272,7 +271,7 @@ func (m *MockServer) Stop() error
 func (m *MockServer) Reset()
 
 // SetResponse configures expected response for specific endpoint
-func (m *MockServer) SetResponse(method, path string, statusCode int, body interface{})
+func (m *MockServer) SetResponse(method, path string, statusCode int, body any)
 
 // SetRateLimit configures rate limit headers for next response
 func (m *MockServer) SetRateLimit(limit, remaining int, reset time.Time)
@@ -523,7 +522,7 @@ func (m *MockServer) SetJobDelay(delay time.Duration)
 - Simulate paginated post responses
 - Create job IDs for post publishing
 - Simulate job progression with configurable delays
-- Return appropriate job status based on scenario
+- Return appropriate job status based on configured SetResponse() and job progression
 
 **Testing Requirements:**
 ```go
@@ -1026,7 +1025,7 @@ func (m *MockServer) handleUpdatePost(w http.ResponseWriter, r *http.Request)
 func (m *MockServer) handleDeletePost(w http.ResponseWriter, r *http.Request)
 
 // UpdateMockPost updates a post in mock data
-func (m *MockServer) UpdateMockPost(id string, updates map[string]interface{})
+func (m *MockServer) UpdateMockPost(id string, updates map[string]any)
 ```
 
 **Function Responsibilities:**
