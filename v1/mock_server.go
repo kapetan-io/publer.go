@@ -269,65 +269,23 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Handle job status requests
-	if strings.HasPrefix(r.URL.Path, "/api/v1/jobs/") {
-		parts := strings.Split(r.URL.Path, "/")
-		if len(parts) >= 5 {
-			jobID := parts[4]
-
-			// Check job progression first
-			if states, exists := m.jobProgression[jobID]; exists {
-				index := m.jobProgressIndex[jobID]
-				if index < len(states) {
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(states[index])
-					return
-				}
-			}
-
-			// Check regular job status
-			if job, exists := m.jobs[jobID]; exists {
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(job)
-				return
-			}
-		}
-	}
-
-	// Handle posts listing with pagination
-	if r.Method == "GET" && r.URL.Path == "/api/v1/posts" {
-		pageStr := r.URL.Query().Get("page")
-		page := 1
-		if pageStr != "" {
-			page, _ = strconv.Atoi(pageStr)
-		}
-
-		perPage := 10
-		total := len(m.posts)
-		totalPages := (total + perPage - 1) / perPage
-
-		start := (page - 1) * perPage
-		end := start + perPage
-		if end > total {
-			end = total
-		}
-
-		var items []Post
-		if start < total {
-			items = m.posts[start:end]
-		} else {
-			items = []Post{}
-		}
-
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(Page[Post]{
-			Items:      items,
-			Total:      total,
-			Page:       page,
-			PerPage:    perPage,
-			TotalPages: totalPages,
-		})
+	if strings.HasPrefix(r.URL.Path, "/api/v1/job_status/") {
+		m.handleJobStatus(w, r)
 		return
 	}
+
+	// Handle posts operations
+	if r.URL.Path == "/api/v1/posts" && r.Method == "GET" {
+		m.handleListPosts(w, r)
+		return
+	}
+
+	// Handle post publishing
+	if r.URL.Path == "/api/v1/posts/schedule/publish" && r.Method == "POST" {
+		m.handlePublishPost(w, r)
+		return
+	}
+
 
 	// Default 404
 	w.WriteHeader(http.StatusNotFound)
@@ -335,4 +293,103 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 		Error:   "not_found",
 		Message: "Endpoint not found",
 	})
+}
+
+// handleListPosts handles GET /api/v1/posts
+func (m *MockServer) handleListPosts(w http.ResponseWriter, r *http.Request) {
+	pageStr := r.URL.Query().Get("page")
+	page := 1
+	if pageStr != "" {
+		page, _ = strconv.Atoi(pageStr)
+	}
+
+	perPage := 10
+	total := len(m.posts)
+	totalPages := (total + perPage - 1) / perPage
+
+	start := (page - 1) * perPage
+	end := start + perPage
+	if end > total {
+		end = total
+	}
+
+	var posts []Post
+	if start < total {
+		posts = m.posts[start:end]
+	} else {
+		posts = []Post{}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(ListPostsResponse{
+		Posts:      posts,
+		Total:      total,
+		Page:       page,
+		PerPage:    perPage,
+		TotalPages: totalPages,
+	})
+}
+
+// handlePublishPost handles POST /api/v1/posts/schedule/publish
+func (m *MockServer) handlePublishPost(w http.ResponseWriter, r *http.Request) {
+	jobID := "job-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+
+	// Set default job status
+	m.jobs[jobID] = &JobStatus{
+		ID:       jobID,
+		Status:   "pending",
+		Progress: 0,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(PublishPostResponse{
+		JobID: jobID,
+	})
+}
+
+// handleJobStatus handles GET /api/v1/job_status/{job_id}
+func (m *MockServer) handleJobStatus(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 5 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Invalid job ID",
+		})
+		return
+	}
+
+	jobID := parts[4]
+
+	// Check job progression first
+	if states, exists := m.jobProgression[jobID]; exists {
+		index := m.jobProgressIndex[jobID]
+		if index < len(states) {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(GetJobStatusResponse{
+				JobStatus: states[index],
+			})
+			return
+		}
+	}
+
+	// Check regular job status
+	if job, exists := m.jobs[jobID]; exists {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(GetJobStatusResponse{
+			JobStatus: *job,
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(ErrorResponse{
+		Error:   "not_found",
+		Message: "Job not found",
+	})
+}
+
+// SetJobDelay configures job completion delay
+func (m *MockServer) SetJobDelay(delay time.Duration) {
+	m.SetDelay(delay)
 }

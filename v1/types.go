@@ -1,5 +1,7 @@
 package v1
 
+import "time"
+
 // User represents a Publer user
 type User struct {
 	ID        string `json:"id"`
@@ -9,10 +11,19 @@ type User struct {
 	Picture   string `json:"picture"`
 }
 
-// Post represents a Publer post (basic definition, extended in Phase 1)
+// Post represents a Publer post
 type Post struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
+	ID          string    `json:"id"`
+	Text        string    `json:"text"`
+	URL         string    `json:"url"`
+	State       string    `json:"state"`
+	Type        string    `json:"type"`
+	AccountID   string    `json:"account_id"`
+	User        User      `json:"user"`
+	ScheduledAt time.Time `json:"scheduled_at"`
+	PostLink    string    `json:"post_link"`
+	HasMedia    bool      `json:"has_media"`
+	Network     string    `json:"network"`
 }
 
 // Account represents a social media account (basic definition, extended in Phase 4)
@@ -38,9 +49,11 @@ type JobStatus struct {
 
 // JobResult contains job completion data
 type JobResult struct {
-	PostIDs []string `json:"post_ids"`
-	Message string   `json:"message"`
-	Error   string   `json:"error,omitempty"`
+	Success bool                   `json:"success"`
+	PostIDs []string               `json:"post_ids"`
+	Message string                 `json:"message"`
+	Error   string                 `json:"error,omitempty"`
+	Data    map[string]interface{} `json:"data,omitempty"`
 }
 
 // Media represents media attachment

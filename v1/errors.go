@@ -47,3 +47,6 @@ func (e *RateLimitError) As(target interface{}) bool {
 		return false
 	}
 }
+
+// ErrNoMoreItems is returned when there are no more items in an iterator
+var ErrNoMoreItems = fmt.Errorf("no more items")
