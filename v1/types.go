@@ -32,10 +32,14 @@ type Account struct {
 	Name string `json:"name"`
 }
 
-// Workspace represents a Publer workspace (basic definition, extended in Phase 3)
+// Workspace represents a Publer workspace
 type Workspace struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID      string `json:"id"`
+	Owner   User   `json:"owner"`
+	Name    string `json:"name"`
+	Members []User `json:"members"`
+	Plan    string `json:"plan"`
+	Picture string `json:"picture"`
 }
 
 // JobStatus represents async job status (basic definition, extended in Phase 1)

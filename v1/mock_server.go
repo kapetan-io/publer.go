@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+const defaultPerPage = 10
+
 // MockServer provides a test HTTP server that mimics Publer API
 type MockServer struct {
 	mu               *sync.RWMutex
@@ -25,6 +27,7 @@ type MockServer struct {
 	posts            []Post
 	accounts         []Account
 	workspaces       []Workspace
+	currentUser      *User
 	responses        map[string]MockResponse
 	errorResponses   map[string]MockErrorResponse
 	callCounts       map[string]int
@@ -96,6 +99,7 @@ func (m *MockServer) Reset() {
 	m.posts = []Post{}
 	m.accounts = []Account{}
 	m.workspaces = []Workspace{}
+	m.currentUser = nil
 	m.responses = make(map[string]MockResponse)
 	m.errorResponses = make(map[string]MockErrorResponse)
 	m.callCounts = make(map[string]int)
@@ -204,6 +208,22 @@ func (m *MockServer) AddWorkspaces(workspaces []Workspace) {
 	m.workspaces = append(m.workspaces, workspaces...)
 }
 
+// SetCurrentUser sets the mock current user
+func (m *MockServer) SetCurrentUser(user User) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.currentUser = &user
+}
+
+// AddWorkspace adds a workspace to mock data
+func (m *MockServer) AddWorkspace(workspace Workspace) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.workspaces = append(m.workspaces, workspace)
+}
+
 // AddScheduledPost adds a scheduled post to mock data
 func (m *MockServer) AddScheduledPost(post Post) {
 	m.mu.Lock()
@@ -301,6 +321,18 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Handle user operations
+	if r.URL.Path == "/api/v1/users/me" && r.Method == "GET" {
+		m.handleGetMe(w, r)
+		return
+	}
+
+	// Handle workspace operations
+	if r.URL.Path == "/api/v1/workspaces" && r.Method == "GET" {
+		m.handleListWorkspaces(w, r)
+		return
+	}
+
 	// Default 404
 	w.WriteHeader(http.StatusNotFound)
 	json.NewEncoder(w).Encode(ErrorResponse{
@@ -317,7 +349,7 @@ func (m *MockServer) handleListPosts(w http.ResponseWriter, r *http.Request) {
 		page, _ = strconv.Atoi(pageStr)
 	}
 
-	perPage := 10
+	perPage := defaultPerPage
 	total := len(m.posts)
 	totalPages := (total + perPage - 1) / perPage
 
@@ -495,4 +527,56 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 // SetJobDelay configures job completion delay
 func (m *MockServer) SetJobDelay(delay time.Duration) {
 	m.SetDelay(delay)
+}
+
+// handleGetMe handles GET /api/v1/users/me
+func (m *MockServer) handleGetMe(w http.ResponseWriter, r *http.Request) {
+	if m.currentUser == nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "not_found",
+			Message: "User not found",
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(GetMeResponse{
+		User: *m.currentUser,
+	})
+}
+
+// handleListWorkspaces handles GET /api/v1/workspaces
+func (m *MockServer) handleListWorkspaces(w http.ResponseWriter, r *http.Request) {
+	pageStr := r.URL.Query().Get("page")
+	page := 1
+	if pageStr != "" {
+		page, _ = strconv.Atoi(pageStr)
+	}
+
+	perPage := defaultPerPage
+	total := len(m.workspaces)
+	totalPages := (total + perPage - 1) / perPage
+
+	start := (page - 1) * perPage
+	end := start + perPage
+	if end > total {
+		end = total
+	}
+
+	var workspaces []Workspace
+	if start < total {
+		workspaces = m.workspaces[start:end]
+	} else {
+		workspaces = []Workspace{}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(ListWorkspacesResponse{
+		Workspaces: workspaces,
+		Total:      total,
+		Page:       page,
+		PerPage:    perPage,
+		TotalPages: totalPages,
+	})
 }
