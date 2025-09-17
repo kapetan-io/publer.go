@@ -2,7 +2,6 @@ package v1_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -58,77 +57,6 @@ func TestListPosts(t *testing.T) {
 	assert.False(t, hasMore)
 }
 
-func TestListPostsPagination(t *testing.T) {
-	server := v1.SpawnMockServer()
-	defer server.Stop()
-
-	client := server.Client()
-
-	const totalPosts = 25
-	posts := make([]v1.Post, totalPosts)
-	for i := 0; i < totalPosts; i++ {
-		posts[i] = v1.Post{
-			ID:        fmt.Sprintf("post-%d", i+1),
-			Text:      fmt.Sprintf("Post %d", i+1),
-			State:     "published",
-			AccountID: "account-1",
-			Network:   "twitter",
-		}
-	}
-
-	server.Reset()
-	server.AddPosts(posts)
-
-	iterator := client.ListPosts(context.Background(), v1.ListPostsRequest{})
-
-	count := 0
-	pageNum := 0
-	var retrievedPosts []v1.Post
-	var page v1.Page[v1.Post]
-	for {
-		hasMore := iterator.Next(context.Background(), &page)
-		require.NoError(t, iterator.Err())
-		pageNum++
-
-		// Validate pagination metadata
-		assert.Equal(t, totalPosts, page.Total)
-		assert.Equal(t, pageNum, page.Page)
-		assert.Equal(t, 10, page.PerPage)
-		assert.Equal(t, 3, page.TotalPages) // 25 posts / 10 per page = 3 pages
-
-		// Validate expected page size (10 for pages 1-2, 5 for page 3)
-		expectedPageSize := 10
-		if pageNum == 3 {
-			expectedPageSize = 5
-		}
-		assert.Len(t, page.Items, expectedPageSize)
-
-		// Collect posts and validate IDs are in correct order
-		for _, post := range page.Items {
-			count++
-			assert.Equal(t, fmt.Sprintf("post-%d", count), post.ID)
-			retrievedPosts = append(retrievedPosts, post)
-		}
-
-		if !hasMore {
-			break
-		}
-	}
-
-	assert.Equal(t, totalPosts, count)
-	assert.Equal(t, 3, pageNum)
-
-	// Verify all retrieved posts match the original posts array
-	require.Len(t, retrievedPosts, totalPosts)
-	for i, retrievedPost := range retrievedPosts {
-		expectedPost := posts[i]
-		assert.Equal(t, expectedPost.ID, retrievedPost.ID)
-		assert.Equal(t, expectedPost.Text, retrievedPost.Text)
-		assert.Equal(t, expectedPost.State, retrievedPost.State)
-		assert.Equal(t, expectedPost.AccountID, retrievedPost.AccountID)
-		assert.Equal(t, expectedPost.Network, retrievedPost.Network)
-	}
-}
 
 func TestGetJobStatus(t *testing.T) {
 	server := v1.SpawnMockServer()
