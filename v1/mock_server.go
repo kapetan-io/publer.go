@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -203,6 +204,14 @@ func (m *MockServer) AddWorkspaces(workspaces []Workspace) {
 	m.workspaces = append(m.workspaces, workspaces...)
 }
 
+// AddScheduledPost adds a scheduled post to mock data
+func (m *MockServer) AddScheduledPost(post Post) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.posts = append(m.posts, post)
+}
+
 // handleRequest routes requests to appropriate handlers
 func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 	// Apply delay before acquiring lock to avoid holding lock during sleep
@@ -286,6 +295,11 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Handle post scheduling and drafts
+	if r.URL.Path == "/api/v1/posts/schedule" && r.Method == "POST" {
+		m.handleSchedulePost(w, r)
+		return
+	}
 
 	// Default 404
 	w.WriteHeader(http.StatusNotFound)
@@ -386,6 +400,95 @@ func (m *MockServer) handleJobStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ErrorResponse{
 		Error:   "not_found",
 		Message: "Job not found",
+	})
+}
+
+// handleSchedulePost handles POST /api/v1/posts/schedule
+func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) {
+	var scheduleReq SchedulePostRequest
+	var draftReq CreateDraftPostRequest
+
+	// Read the entire request body
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Failed to read request body",
+		})
+		return
+	}
+
+	var requestData map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &requestData); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Invalid JSON payload",
+		})
+		return
+	}
+
+	jobID := "job-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+
+	// Set default job status
+	m.jobs[jobID] = &JobStatus{
+		ID:       jobID,
+		Status:   "pending",
+		Progress: 0,
+	}
+
+	// Check if this is a draft request (has visibility field)
+	if _, hasDraft := requestData["visibility"]; hasDraft {
+		if err := json.Unmarshal(bodyBytes, &draftReq); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{
+				Error:   "bad_request",
+				Message: "Invalid draft request format",
+			})
+			return
+		}
+
+		// Validate visibility
+		if draftReq.Visibility != "draft_private" && draftReq.Visibility != "draft_public" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{
+				Error:   "bad_request",
+				Message: "Invalid visibility. Must be draft_private or draft_public",
+			})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(CreateDraftPostResponse{
+			JobID: jobID,
+		})
+		return
+	}
+
+	// Otherwise, treat as schedule request
+	if err := json.Unmarshal(bodyBytes, &scheduleReq); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Invalid schedule request format",
+		})
+		return
+	}
+
+	// Validate that scheduled_at is in the future
+	if !scheduleReq.ScheduledAt.After(time.Now()) {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Scheduled time must be in the future",
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(SchedulePostResponse{
+		JobID: jobID,
 	})
 }
 

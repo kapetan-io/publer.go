@@ -163,8 +163,8 @@ func TestPublishPost(t *testing.T) {
 	client := server.Client()
 
 	req := v1.PublishPostRequest{
-		Text:     "Test post content",
 		Accounts: []string{"account-1", "account-2"},
+		Text:     "Test post content",
 	}
 
 	var resp v1.PublishPostResponse
@@ -182,4 +182,145 @@ func TestPublishPost(t *testing.T) {
 	assert.Equal(t, resp.JobID, jobResp.ID)
 	assert.Equal(t, "pending", jobResp.Status)
 	assert.Equal(t, 0, jobResp.Progress)
+}
+
+func TestSchedulePost(t *testing.T) {
+	server := v1.SpawnMockServer()
+	defer server.Stop()
+
+	client := server.Client()
+
+	req := v1.SchedulePostRequest{
+		ScheduledAt: time.Now().Add(time.Hour),
+		TimeZone:    "UTC",
+		Accounts:    []string{"account-1", "account-2"},
+		Text:        "Scheduled post content",
+	}
+
+	var resp v1.SchedulePostResponse
+	server.Reset()
+
+	err := client.SchedulePost(context.Background(), req, &resp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.JobID)
+
+	// Verify job status endpoint returns status for the created job
+	jobReq := v1.GetJobStatusRequest{JobID: resp.JobID}
+	var jobResp v1.GetJobStatusResponse
+	err = client.GetJobStatus(context.Background(), jobReq, &jobResp)
+	require.NoError(t, err)
+	assert.Equal(t, resp.JobID, jobResp.ID)
+	assert.Equal(t, "pending", jobResp.Status)
+	assert.Equal(t, 0, jobResp.Progress)
+}
+
+func TestSchedulePostValidation(t *testing.T) {
+	server := v1.SpawnMockServer()
+	defer server.Stop()
+
+	client := server.Client()
+
+	for _, test := range []struct {
+		name       string
+		request    v1.SchedulePostRequest
+		wantErr    string
+	}{
+		{
+			name: "PastScheduledTime",
+			request: v1.SchedulePostRequest{
+				ScheduledAt: time.Now().Add(-time.Hour),
+				Accounts:    []string{"account-1"},
+				Text:        "Test post",
+			},
+			wantErr: "Scheduled time must be in the future",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			server.Reset()
+
+			var resp v1.SchedulePostResponse
+			err := client.SchedulePost(context.Background(), test.request, &resp)
+			require.Error(t, err)
+			require.ErrorContains(t, err, test.wantErr)
+		})
+	}
+}
+
+func TestCreateDraftPost(t *testing.T) {
+	server := v1.SpawnMockServer()
+	defer server.Stop()
+
+	client := server.Client()
+
+	req := v1.CreateDraftPostRequest{
+		Accounts:   []string{"account-1", "account-2"},
+		Visibility: "draft_private",
+		Text:       "Draft post content",
+	}
+
+	var resp v1.CreateDraftPostResponse
+	server.Reset()
+
+	err := client.CreateDraftPost(context.Background(), req, &resp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.JobID)
+
+	// Verify job status endpoint returns status for the created job
+	jobReq := v1.GetJobStatusRequest{JobID: resp.JobID}
+	var jobResp v1.GetJobStatusResponse
+	err = client.GetJobStatus(context.Background(), jobReq, &jobResp)
+	require.NoError(t, err)
+	assert.Equal(t, resp.JobID, jobResp.ID)
+	assert.Equal(t, "pending", jobResp.Status)
+	assert.Equal(t, 0, jobResp.Progress)
+}
+
+func TestDraftVisibility(t *testing.T) {
+	server := v1.SpawnMockServer()
+	defer server.Stop()
+
+	client := server.Client()
+
+	for _, test := range []struct {
+		name       string
+		visibility string
+		wantErr    string
+	}{
+		{
+			name:       "ValidPrivate",
+			visibility: "draft_private",
+			wantErr:    "",
+		},
+		{
+			name:       "ValidPublic",
+			visibility: "draft_public",
+			wantErr:    "",
+		},
+		{
+			name:       "InvalidVisibility",
+			visibility: "invalid_visibility",
+			wantErr:    "Invalid visibility. Must be draft_private or draft_public",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			server.Reset()
+
+			req := v1.CreateDraftPostRequest{
+				Visibility: test.visibility,
+				Accounts:   []string{"account-1"},
+				Text:       "Test draft",
+			}
+
+			var resp v1.CreateDraftPostResponse
+			err := client.CreateDraftPost(context.Background(), req, &resp)
+
+			if test.wantErr == "" {
+				require.NoError(t, err)
+				assert.NotEmpty(t, resp.JobID)
+			} else {
+				require.Error(t, err)
+				require.ErrorContains(t, err, test.wantErr)
+			}
+		})
+	}
 }
