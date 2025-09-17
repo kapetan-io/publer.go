@@ -26,10 +26,14 @@ type Post struct {
 	Network     string    `json:"network"`
 }
 
-// Account represents a social media account (basic definition, extended in Phase 4)
+// Account represents a social media account
 type Account struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID       string `json:"id"`
+	Provider string `json:"provider"`
+	Name     string `json:"name"`
+	SocialID string `json:"social_id"`
+	Picture  string `json:"picture"`
+	Type     string `json:"type"`
 }
 
 // Workspace represents a Publer workspace

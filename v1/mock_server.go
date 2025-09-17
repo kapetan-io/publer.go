@@ -333,6 +333,12 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Handle account operations
+	if r.URL.Path == "/api/v1/accounts" && r.Method == "GET" {
+		m.handleListAccounts(w, r)
+		return
+	}
+
 	// Default 404
 	w.WriteHeader(http.StatusNotFound)
 	json.NewEncoder(w).Encode(ErrorResponse{
@@ -533,7 +539,7 @@ func (m *MockServer) SetJobDelay(delay time.Duration) {
 func (m *MockServer) handleGetMe(w http.ResponseWriter, r *http.Request) {
 	if m.currentUser == nil {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "not_found",
 			Message: "User not found",
 		})
@@ -541,7 +547,7 @@ func (m *MockServer) handleGetMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(GetMeResponse{
+	_ = json.NewEncoder(w).Encode(GetMeResponse{
 		User: *m.currentUser,
 	})
 }
@@ -579,4 +585,63 @@ func (m *MockServer) handleListWorkspaces(w http.ResponseWriter, r *http.Request
 		PerPage:    perPage,
 		TotalPages: totalPages,
 	})
+}
+
+// handleListAccounts handles GET /api/v1/accounts
+func (m *MockServer) handleListAccounts(w http.ResponseWriter, r *http.Request) {
+	pageStr := r.URL.Query().Get("page")
+	page := 1
+	if pageStr != "" {
+		page, _ = strconv.Atoi(pageStr)
+	}
+
+	perPage := defaultPerPage
+	total := len(m.accounts)
+	totalPages := (total + perPage - 1) / perPage
+
+	start := (page - 1) * perPage
+	end := start + perPage
+	if end > total {
+		end = total
+	}
+
+	var accounts []Account
+	if start < total {
+		accounts = m.accounts[start:end]
+	} else {
+		accounts = []Account{}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(ListAccountsResponse{
+		Accounts:   accounts,
+		Total:      total,
+		Page:       page,
+		PerPage:    perPage,
+		TotalPages: totalPages,
+	})
+}
+
+// AddAccount adds a social media account to mock data
+func (m *MockServer) AddAccount(account Account) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.accounts = append(m.accounts, account)
+}
+
+// SetAccountsByProvider sets accounts filtered by provider
+func (m *MockServer) SetAccountsByProvider(provider string, accounts []Account) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Clear existing accounts for this provider and add new ones
+	var filteredAccounts []Account
+	for _, acc := range m.accounts {
+		if acc.Provider != provider {
+			filteredAccounts = append(filteredAccounts, acc)
+		}
+	}
+
+	m.accounts = append(filteredAccounts, accounts...)
 }
