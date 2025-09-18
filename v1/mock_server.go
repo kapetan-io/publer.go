@@ -31,6 +31,7 @@ type MockServer struct {
 	responses        map[string]MockResponse
 	errorResponses   map[string]MockErrorResponse
 	callCounts       map[string]int
+	bulkOpLimit      int
 }
 
 // MockResponse holds configured response data
@@ -384,6 +385,34 @@ func (m *MockServer) handleListPosts(w http.ResponseWriter, r *http.Request) {
 
 // handlePublishPost handles POST /api/v1/posts/schedule/publish
 func (m *MockServer) handlePublishPost(w http.ResponseWriter, r *http.Request) {
+	// Read the entire request body
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Failed to read request body",
+		})
+		return
+	}
+
+	var requestData map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &requestData); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Invalid JSON payload",
+		})
+		return
+	}
+
+	// Check if this is a bulk operation (has "posts" array)
+	if postsData, isBulk := requestData["posts"]; isBulk {
+		m.handleBulkPublish(w, r, bodyBytes, postsData)
+		return
+	}
+
+	// Handle single post publish
 	jobID := "job-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 
 	// Set default job status
@@ -395,6 +424,43 @@ func (m *MockServer) handlePublishPost(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(PublishPostResponse{
+		JobID: jobID,
+	})
+}
+
+// handleBulkPublish handles bulk publishing requests
+func (m *MockServer) handleBulkPublish(w http.ResponseWriter, r *http.Request, bodyBytes []byte, postsData interface{}) {
+	var bulkReq BulkPublishPostsRequest
+	if err := json.Unmarshal(bodyBytes, &bulkReq); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Invalid bulk publish request format",
+		})
+		return
+	}
+
+	// Check bulk operation limit
+	if m.bulkOpLimit > 0 && len(bulkReq.Posts) > m.bulkOpLimit {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: fmt.Sprintf("Bulk operation limit exceeded. Maximum %d posts allowed", m.bulkOpLimit),
+		})
+		return
+	}
+
+	jobID := "job-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+
+	// Set default job status
+	m.jobs[jobID] = &JobStatus{
+		ID:       jobID,
+		Status:   "pending",
+		Progress: 0,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(BulkPublishPostsResponse{
 		JobID: jobID,
 	})
 }
@@ -467,6 +533,12 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Check if this is a bulk operation (has "posts" array)
+	if postsData, isBulk := requestData["posts"]; isBulk {
+		m.handleBulkSchedule(w, r, bodyBytes, postsData)
+		return
+	}
+
 	jobID := "job-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 
 	// Set default job status
@@ -526,6 +598,55 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(SchedulePostResponse{
+		JobID: jobID,
+	})
+}
+
+// handleBulkSchedule handles bulk scheduling requests
+func (m *MockServer) handleBulkSchedule(w http.ResponseWriter, r *http.Request, bodyBytes []byte, postsData interface{}) {
+	var bulkReq BulkSchedulePostsRequest
+	if err := json.Unmarshal(bodyBytes, &bulkReq); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Invalid bulk schedule request format",
+		})
+		return
+	}
+
+	// Check bulk operation limit
+	if m.bulkOpLimit > 0 && len(bulkReq.Posts) > m.bulkOpLimit {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: fmt.Sprintf("Bulk operation limit exceeded. Maximum %d posts allowed", m.bulkOpLimit),
+		})
+		return
+	}
+
+	// Validate that all scheduled posts have future timestamps
+	for i, post := range bulkReq.Posts {
+		if !post.ScheduledAt.IsZero() && !post.ScheduledAt.After(time.Now()) {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{
+				Error:   "bad_request",
+				Message: fmt.Sprintf("Post %d: Scheduled time must be in the future", i+1),
+			})
+			return
+		}
+	}
+
+	jobID := "job-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+
+	// Set default job status
+	m.jobs[jobID] = &JobStatus{
+		ID:       jobID,
+		Status:   "pending",
+		Progress: 0,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(BulkSchedulePostsResponse{
 		JobID: jobID,
 	})
 }
@@ -644,4 +765,12 @@ func (m *MockServer) SetAccountsByProvider(provider string, accounts []Account) 
 	}
 
 	m.accounts = append(filteredAccounts, accounts...)
+}
+
+// SetBulkOperationLimit sets maximum posts per bulk operation
+func (m *MockServer) SetBulkOperationLimit(limit int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.bulkOpLimit = limit
 }
