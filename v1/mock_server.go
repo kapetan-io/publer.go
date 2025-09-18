@@ -322,6 +322,25 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Handle post management operations
+	if strings.HasPrefix(r.URL.Path, "/api/v1/posts/") && len(strings.Split(r.URL.Path, "/")) == 5 {
+		// Extract post ID from path: /api/v1/posts/{id}
+		parts := strings.Split(r.URL.Path, "/")
+		postID := parts[4]
+
+		switch r.Method {
+		case "GET":
+			m.handleGetPost(w, r, postID)
+			return
+		case "PATCH":
+			m.handleUpdatePost(w, r, postID)
+			return
+		case "DELETE":
+			m.handleDeletePost(w, r, postID)
+			return
+		}
+	}
+
 	// Handle user operations
 	if r.URL.Path == "/api/v1/users/me" && r.Method == "GET" {
 		m.handleGetMe(w, r)
@@ -773,4 +792,134 @@ func (m *MockServer) SetBulkOperationLimit(limit int) {
 	defer m.mu.Unlock()
 
 	m.bulkOpLimit = limit
+}
+
+// handleGetPost handles GET /api/v1/posts/{id}
+func (m *MockServer) handleGetPost(w http.ResponseWriter, r *http.Request, postID string) {
+	// Find post by ID
+	for _, post := range m.posts {
+		if post.ID == postID {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(GetPostResponse{Post: post})
+			return
+		}
+	}
+
+	// Post not found
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(ErrorResponse{
+		Error:   "not_found",
+		Message: "Post not found",
+	})
+}
+
+// handleUpdatePost handles PATCH /api/v1/posts/{id}
+func (m *MockServer) handleUpdatePost(w http.ResponseWriter, r *http.Request, postID string) {
+	// Read request body
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Failed to read request body",
+		})
+		return
+	}
+
+	var updateReq UpdatePostRequest
+	if err := json.Unmarshal(bodyBytes, &updateReq); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Invalid JSON in request body",
+		})
+		return
+	}
+
+	// Find and update post
+	for i, post := range m.posts {
+		if post.ID == postID {
+			// Apply partial updates
+			if updateReq.Text != "" {
+				m.posts[i].Text = updateReq.Text
+			}
+			if !updateReq.ScheduledAt.IsZero() {
+				m.posts[i].ScheduledAt = updateReq.ScheduledAt
+			}
+			if updateReq.Media != nil {
+				m.posts[i].HasMedia = len(updateReq.Media) > 0
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(UpdatePostResponse{Post: m.posts[i]})
+			return
+		}
+	}
+
+	// Post not found
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(ErrorResponse{
+		Error:   "not_found",
+		Message: "Post not found",
+	})
+}
+
+// handleDeletePost handles DELETE /api/v1/posts/{id}
+func (m *MockServer) handleDeletePost(w http.ResponseWriter, r *http.Request, postID string) {
+	// Find post index to remove
+	foundIndex := -1
+	for i, post := range m.posts {
+		if post.ID == postID {
+			foundIndex = i
+			break
+		}
+	}
+
+	if foundIndex == -1 {
+		// Post not found
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "not_found",
+			Message: "Post not found",
+		})
+		return
+	}
+
+	// Remove post from slice safely
+	if foundIndex == len(m.posts)-1 {
+		// Last element - just truncate
+		m.posts = m.posts[:foundIndex]
+	} else {
+		// Copy remaining elements
+		copy(m.posts[foundIndex:], m.posts[foundIndex+1:])
+		m.posts = m.posts[:len(m.posts)-1]
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(DeletePostResponse{
+		Success: true,
+		Message: "Post deleted successfully",
+	})
+}
+
+// UpdateMockPost updates a post in mock data
+func (m *MockServer) UpdateMockPost(id string, updates map[string]any) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i, post := range m.posts {
+		if post.ID == id {
+			// Apply updates based on map
+			if text, ok := updates["text"].(string); ok {
+				m.posts[i].Text = text
+			}
+			if scheduledAt, ok := updates["scheduled_at"].(time.Time); ok {
+				m.posts[i].ScheduledAt = scheduledAt
+			}
+			if state, ok := updates["state"].(string); ok {
+				m.posts[i].State = state
+			}
+			break
+		}
+	}
 }
