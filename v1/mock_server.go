@@ -322,6 +322,24 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Handle recurring posts
+	if r.URL.Path == "/api/v1/posts/recurring" && r.Method == "POST" {
+		m.handleRecurringPost(w, r)
+		return
+	}
+
+	// Handle auto-scheduling
+	if r.URL.Path == "/api/v1/posts/auto-schedule" && r.Method == "POST" {
+		m.handleAutoSchedulePost(w, r)
+		return
+	}
+
+	// Handle post recycling
+	if r.URL.Path == "/api/v1/posts/recycle" && r.Method == "POST" {
+		m.handleRecyclePost(w, r)
+		return
+	}
+
 	// Handle post management operations
 	if strings.HasPrefix(r.URL.Path, "/api/v1/posts/") && len(strings.Split(r.URL.Path, "/")) == 5 {
 		// Extract post ID from path: /api/v1/posts/{id}
@@ -375,9 +393,15 @@ func (m *MockServer) handleListPosts(w http.ResponseWriter, r *http.Request) {
 		page, _ = strconv.Atoi(pageStr)
 	}
 
+	// Apply filters
+	filteredPosts := m.filterPosts(r)
+
 	perPage := defaultPerPage
-	total := len(m.posts)
+	total := len(filteredPosts)
 	totalPages := (total + perPage - 1) / perPage
+	if totalPages == 0 {
+		totalPages = 1
+	}
 
 	start := (page - 1) * perPage
 	end := start + perPage
@@ -387,7 +411,7 @@ func (m *MockServer) handleListPosts(w http.ResponseWriter, r *http.Request) {
 
 	var posts []Post
 	if start < total {
-		posts = m.posts[start:end]
+		posts = filteredPosts[start:end]
 	} else {
 		posts = []Post{}
 	}
@@ -400,6 +424,97 @@ func (m *MockServer) handleListPosts(w http.ResponseWriter, r *http.Request) {
 		PerPage:    perPage,
 		TotalPages: totalPages,
 	})
+}
+
+// filterPosts applies query parameter filters to posts
+func (m *MockServer) filterPosts(r *http.Request) []Post {
+	var filtered []Post
+
+	state := r.URL.Query().Get("state")
+	states := r.URL.Query()["state[]"]
+	query := r.URL.Query().Get("query")
+	accountIDs := r.URL.Query()["account_ids[]"]
+	postType := r.URL.Query().Get("postType")
+	memberID := r.URL.Query().Get("member_id")
+	fromStr := r.URL.Query().Get("from")
+	toStr := r.URL.Query().Get("to")
+
+	var fromTime, toTime time.Time
+	var err error
+	if fromStr != "" {
+		fromTime, err = time.Parse(time.RFC3339, fromStr)
+		if err != nil {
+			fromTime = time.Time{}
+		}
+	}
+	if toStr != "" {
+		toTime, err = time.Parse(time.RFC3339, toStr)
+		if err != nil {
+			toTime = time.Time{}
+		}
+	}
+
+	for _, post := range m.posts {
+		// Filter by state (single state)
+		if state != "" && post.State != state {
+			continue
+		}
+
+		// Filter by states (multiple states)
+		if len(states) > 0 {
+			found := false
+			for _, s := range states {
+				if post.State == s {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		// Filter by query (simple text search)
+		if query != "" && !strings.Contains(strings.ToLower(post.Text), strings.ToLower(query)) {
+			continue
+		}
+
+		// Filter by account IDs
+		if len(accountIDs) > 0 {
+			found := false
+			for _, accountID := range accountIDs {
+				if post.AccountID == accountID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		// Filter by post type
+		if postType != "" && post.Type != postType {
+			continue
+		}
+
+		// Filter by member ID (in this mock, we'll assume User.ID represents member)
+		if memberID != "" && post.User.ID != memberID {
+			continue
+		}
+
+		// Filter by date range
+		if !fromTime.IsZero() && post.ScheduledAt.Before(fromTime) {
+			continue
+		}
+		if !toTime.IsZero() && post.ScheduledAt.After(toTime) {
+			continue
+		}
+
+		filtered = append(filtered, post)
+	}
+
+	return filtered
 }
 
 // handlePublishPost handles POST /api/v1/posts/schedule/publish
@@ -921,5 +1036,258 @@ func (m *MockServer) UpdateMockPost(id string, updates map[string]any) {
 			}
 			break
 		}
+	}
+}
+
+// handleRecurringPost handles POST /api/v1/posts/recurring
+func (m *MockServer) handleRecurringPost(w http.ResponseWriter, r *http.Request) {
+	var req RecurringPostRequest
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Failed to read request body",
+		})
+		return
+	}
+
+	if err := json.Unmarshal(bodyBytes, &req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Invalid JSON payload",
+		})
+		return
+	}
+
+	if req.Text == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Text field is required",
+		})
+		return
+	}
+
+	if len(req.Accounts) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "At least one account is required",
+		})
+		return
+	}
+
+	if req.Recurrence.Frequency == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Recurrence frequency is required",
+		})
+		return
+	}
+
+	jobID := fmt.Sprintf("recurring-%d", time.Now().UnixNano())
+
+	response := RecurringPostResponse{
+		JobID: jobID,
+	}
+
+	m.jobs[jobID] = &JobStatus{
+		ID:       jobID,
+		Status:   "in_progress",
+		Progress: 0,
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleAutoSchedulePost handles POST /api/v1/posts/auto-schedule
+func (m *MockServer) handleAutoSchedulePost(w http.ResponseWriter, r *http.Request) {
+	var req AutoScheduleRequest
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Failed to read request body",
+		})
+		return
+	}
+
+	if err := json.Unmarshal(bodyBytes, &req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Invalid JSON payload",
+		})
+		return
+	}
+
+	if req.Text == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Text field is required",
+		})
+		return
+	}
+
+	if len(req.Accounts) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "At least one account is required",
+		})
+		return
+	}
+
+	if req.Slots <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Slots must be greater than 0",
+		})
+		return
+	}
+
+	if req.EndDate.Before(req.StartDate) {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "End date must be after start date",
+		})
+		return
+	}
+
+	jobID := fmt.Sprintf("auto-schedule-%d", time.Now().UnixNano())
+
+	response := AutoScheduleResponse{
+		JobID: jobID,
+	}
+
+	m.jobs[jobID] = &JobStatus{
+		ID:       jobID,
+		Status:   "in_progress",
+		Progress: 0,
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleRecyclePost handles POST /api/v1/posts/recycle
+func (m *MockServer) handleRecyclePost(w http.ResponseWriter, r *http.Request) {
+	var req RecyclePostRequest
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Failed to read request body",
+		})
+		return
+	}
+
+	if err := json.Unmarshal(bodyBytes, &req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Invalid JSON payload",
+		})
+		return
+	}
+
+	if req.PostID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Post ID is required",
+		})
+		return
+	}
+
+	if req.Frequency == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Frequency is required",
+		})
+		return
+	}
+
+	if req.MaxCount <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "Max count must be greater than 0",
+		})
+		return
+	}
+
+	if req.EndDate.Before(req.StartDate) {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "bad_request",
+			Message: "End date must be after start date",
+		})
+		return
+	}
+
+	found := false
+	for _, post := range m.posts {
+		if post.ID == req.PostID {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "not_found",
+			Message: "Post not found",
+		})
+		return
+	}
+
+	jobID := fmt.Sprintf("recycle-%d", time.Now().UnixNano())
+
+	response := RecyclePostResponse{
+		JobID: jobID,
+	}
+
+	m.jobs[jobID] = &JobStatus{
+		ID:       jobID,
+		Status:   "in_progress",
+		Progress: 0,
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+// SimulateScheduleGeneration creates mock scheduled posts for advanced features
+func (m *MockServer) SimulateScheduleGeneration(count int, interval time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	baseTime := time.Now()
+	for i := 0; i < count; i++ {
+		post := Post{
+			ID:          fmt.Sprintf("scheduled-%d-%d", time.Now().UnixNano(), i),
+			Text:        fmt.Sprintf("Scheduled post %d", i+1),
+			State:       "scheduled",
+			Type:        "post",
+			AccountID:   "test-account",
+			ScheduledAt: baseTime.Add(time.Duration(i) * interval),
+			Network:     "twitter",
+		}
+		m.posts = append(m.posts, post)
 	}
 }

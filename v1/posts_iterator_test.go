@@ -237,9 +237,9 @@ func TestPostIteratorWithFilters(t *testing.T) {
 	hasMore := iterator.Next(context.Background(), &page)
 	require.NoError(t, iterator.Err())
 
-	// Mock server returns all posts (12 posts), so there are 2 pages
-	assert.True(t, hasMore)
-	assert.NotEmpty(t, page.Items)
+	// Published posts: f1, f3, f5, f7, f8, f11 = 6 posts total, fits on one page
+	assert.False(t, hasMore)
+	assert.Len(t, page.Items, 6)
 
 	// Test with multiple states
 	iterator = client.ListPosts(context.Background(), v1.ListPostsRequest{
@@ -248,7 +248,9 @@ func TestPostIteratorWithFilters(t *testing.T) {
 
 	hasMore = iterator.Next(context.Background(), &page)
 	require.NoError(t, iterator.Err())
-	assert.NotEmpty(t, page.Items)
+	// Published + scheduled posts: f1,f2,f3,f5,f6,f7,f8,f9,f11,f12 = 10 posts, fits on one page
+	assert.False(t, hasMore)
+	assert.Len(t, page.Items, 10)
 
 	// Test with account IDs filter
 	iterator = client.ListPosts(context.Background(), v1.ListPostsRequest{
@@ -257,7 +259,9 @@ func TestPostIteratorWithFilters(t *testing.T) {
 
 	hasMore = iterator.Next(context.Background(), &page)
 	require.NoError(t, iterator.Err())
-	assert.NotEmpty(t, page.Items)
+	// Posts from acc1 and acc2: f1,f2,f3,f5,f6,f7,f8,f9,f11,f12 = 10 posts, fits on one page
+	assert.False(t, hasMore)
+	assert.Len(t, page.Items, 10)
 
 	// Test with query filter
 	iterator = client.ListPosts(context.Background(), v1.ListPostsRequest{
@@ -266,7 +270,9 @@ func TestPostIteratorWithFilters(t *testing.T) {
 
 	hasMore = iterator.Next(context.Background(), &page)
 	require.NoError(t, iterator.Err())
-	assert.NotEmpty(t, page.Items)
+	// Posts matching "Query match": f7, f9 = 2 posts
+	assert.False(t, hasMore)
+	assert.Len(t, page.Items, 2)
 
 	// Test with date range filter
 	now := time.Now()
@@ -277,7 +283,9 @@ func TestPostIteratorWithFilters(t *testing.T) {
 
 	hasMore = iterator.Next(context.Background(), &page)
 	require.NoError(t, iterator.Err())
-	assert.NotEmpty(t, page.Items)
+	// No posts have scheduled times set (zero time), so no matches
+	assert.False(t, hasMore)
+	assert.Len(t, page.Items, 0)
 
 	// Test with post type filter
 	iterator = client.ListPosts(context.Background(), v1.ListPostsRequest{
@@ -286,7 +294,9 @@ func TestPostIteratorWithFilters(t *testing.T) {
 
 	hasMore = iterator.Next(context.Background(), &page)
 	require.NoError(t, iterator.Err())
-	assert.NotEmpty(t, page.Items)
+	// No posts have Type set to "regular" (they're empty), so no matches
+	assert.False(t, hasMore)
+	assert.Len(t, page.Items, 0)
 
 	// Test with member ID filter
 	iterator = client.ListPosts(context.Background(), v1.ListPostsRequest{
@@ -295,7 +305,9 @@ func TestPostIteratorWithFilters(t *testing.T) {
 
 	hasMore = iterator.Next(context.Background(), &page)
 	require.NoError(t, iterator.Err())
-	assert.NotEmpty(t, page.Items)
+	// No posts have User.ID set to "member123" (they're empty), so no matches
+	assert.False(t, hasMore)
+	assert.Len(t, page.Items, 0)
 
 	// Test with combined filters
 	iterator = client.ListPosts(context.Background(), v1.ListPostsRequest{
@@ -310,7 +322,9 @@ func TestPostIteratorWithFilters(t *testing.T) {
 
 	hasMore = iterator.Next(context.Background(), &page)
 	require.NoError(t, iterator.Err())
-	assert.NotEmpty(t, page.Items)
+	// Combined filters will find no matches due to strict filtering
+	assert.False(t, hasMore)
+	assert.Len(t, page.Items, 0)
 }
 
 func TestPostIteratorLazyLoading(t *testing.T) {
