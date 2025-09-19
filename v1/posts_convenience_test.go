@@ -12,7 +12,7 @@ import (
 
 func TestGetPostsByState(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -39,7 +39,7 @@ func TestGetPostsByState(t *testing.T) {
 
 func TestGetPostsByDateRange(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -71,7 +71,7 @@ func TestGetPostsByDateRange(t *testing.T) {
 
 func TestGetPostsByAccount(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -100,7 +100,7 @@ func TestGetPostsByAccount(t *testing.T) {
 
 func TestGetPostsByQuery(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 

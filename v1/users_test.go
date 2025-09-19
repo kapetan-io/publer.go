@@ -11,7 +11,7 @@ import (
 
 func TestGetMe(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -39,7 +39,7 @@ func TestGetMe(t *testing.T) {
 
 func TestGetMeNotFound(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 

@@ -12,7 +12,7 @@ import (
 
 func TestBulkPublishPosts(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -41,7 +41,7 @@ func TestBulkPublishPosts(t *testing.T) {
 
 	// Verify job status endpoint returns status for the created job
 	var jobResp v1.GetJobStatusResponse
-	err = client.GetJobStatus(context.Background(), v1.GetJobStatusRequest{JobID: resp.JobID}, &jobResp)
+	err = client.GetJobStatus(context.Background(), v1.GetJobStatusRequest(resp), &jobResp)
 	require.NoError(t, err)
 	assert.Equal(t, resp.JobID, jobResp.ID)
 	assert.Equal(t, "pending", jobResp.Status)
@@ -50,7 +50,7 @@ func TestBulkPublishPosts(t *testing.T) {
 
 func TestBulkSchedulePosts(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -84,7 +84,7 @@ func TestBulkSchedulePosts(t *testing.T) {
 
 	// Verify job status endpoint returns status for the created job
 	var jobResp v1.GetJobStatusResponse
-	err = client.GetJobStatus(context.Background(), v1.GetJobStatusRequest{JobID: resp.JobID}, &jobResp)
+	err = client.GetJobStatus(context.Background(), v1.GetJobStatusRequest(resp), &jobResp)
 	require.NoError(t, err)
 	assert.Equal(t, resp.JobID, jobResp.ID)
 	assert.Equal(t, "pending", jobResp.Status)
@@ -93,7 +93,7 @@ func TestBulkSchedulePosts(t *testing.T) {
 
 func TestBulkOperationLimits(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -145,7 +145,7 @@ func TestBulkOperationLimits(t *testing.T) {
 
 func TestBulkPartialFailure(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -194,7 +194,7 @@ func TestBulkPartialFailure(t *testing.T) {
 
 	// Check job result for partial failure
 	var jobResp v1.GetJobStatusResponse
-	err = client.GetJobStatus(context.Background(), v1.GetJobStatusRequest{JobID: resp.JobID}, &jobResp)
+	err = client.GetJobStatus(context.Background(), v1.GetJobStatusRequest(resp), &jobResp)
 	require.NoError(t, err)
 	assert.Equal(t, "completed", jobResp.Status)
 	assert.False(t, jobResp.Result.Success)
@@ -204,7 +204,7 @@ func TestBulkPartialFailure(t *testing.T) {
 
 func TestBulkSchedulePostsValidation(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 

@@ -13,7 +13,7 @@ import (
 func ExampleClient_ListPosts() {
 	// Create mock server for example
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -46,7 +46,7 @@ func ExampleClient_ListPosts() {
 
 func ExampleClient_PublishPost() {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -90,7 +90,7 @@ func ExampleClient_PublishPost() {
 
 func ExampleClient_GetPostsByState() {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -121,7 +121,7 @@ func ExampleClient_GetPostsByState() {
 
 func ExampleClient_WaitForJob() {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -150,7 +150,7 @@ func ExampleClient_WaitForJob() {
 
 func ExampleClient_BulkSchedulePosts() {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 

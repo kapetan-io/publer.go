@@ -12,7 +12,7 @@ import (
 
 func TestListAccounts(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -70,7 +70,7 @@ func TestListAccounts(t *testing.T) {
 
 func TestAccountProviders(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -136,7 +136,7 @@ func TestAccountProviders(t *testing.T) {
 
 func TestAccountTypes(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -197,7 +197,7 @@ func TestAccountTypes(t *testing.T) {
 
 func TestListAccountsEmpty(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -220,7 +220,7 @@ func TestListAccountsEmpty(t *testing.T) {
 
 func TestListAccountsPagination(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -268,7 +268,7 @@ func TestListAccountsPagination(t *testing.T) {
 
 func TestListAccountsContextCancellation(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 

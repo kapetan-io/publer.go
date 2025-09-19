@@ -12,7 +12,7 @@ import (
 
 func TestListPosts(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -60,7 +60,7 @@ func TestListPosts(t *testing.T) {
 
 func TestGetJobStatus(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -84,7 +84,7 @@ func TestGetJobStatus(t *testing.T) {
 
 func TestWaitForJob(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -109,7 +109,7 @@ func TestWaitForJob(t *testing.T) {
 
 func TestWaitForJobFailed(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -134,7 +134,7 @@ func TestWaitForJobFailed(t *testing.T) {
 
 func TestWaitForJobTimeout(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -158,7 +158,7 @@ func TestWaitForJobTimeout(t *testing.T) {
 
 func TestPublishPost(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -175,7 +175,7 @@ func TestPublishPost(t *testing.T) {
 	assert.NotEmpty(t, resp.JobID)
 
 	// Verify job status endpoint returns status for the created job
-	jobReq := v1.GetJobStatusRequest{JobID: resp.JobID}
+	jobReq := v1.GetJobStatusRequest(resp)
 	var jobResp v1.GetJobStatusResponse
 	err = client.GetJobStatus(context.Background(), jobReq, &jobResp)
 	require.NoError(t, err)
@@ -186,7 +186,7 @@ func TestPublishPost(t *testing.T) {
 
 func TestSchedulePost(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -205,7 +205,7 @@ func TestSchedulePost(t *testing.T) {
 	assert.NotEmpty(t, resp.JobID)
 
 	// Verify job status endpoint returns status for the created job
-	jobReq := v1.GetJobStatusRequest{JobID: resp.JobID}
+	jobReq := v1.GetJobStatusRequest(resp)
 	var jobResp v1.GetJobStatusResponse
 	err = client.GetJobStatus(context.Background(), jobReq, &jobResp)
 	require.NoError(t, err)
@@ -216,7 +216,7 @@ func TestSchedulePost(t *testing.T) {
 
 func TestSchedulePostValidation(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -248,7 +248,7 @@ func TestSchedulePostValidation(t *testing.T) {
 
 func TestCreateDraftPost(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -266,7 +266,7 @@ func TestCreateDraftPost(t *testing.T) {
 	assert.NotEmpty(t, resp.JobID)
 
 	// Verify job status endpoint returns status for the created job
-	jobReq := v1.GetJobStatusRequest{JobID: resp.JobID}
+	jobReq := v1.GetJobStatusRequest(resp)
 	var jobResp v1.GetJobStatusResponse
 	err = client.GetJobStatus(context.Background(), jobReq, &jobResp)
 	require.NoError(t, err)
@@ -277,7 +277,7 @@ func TestCreateDraftPost(t *testing.T) {
 
 func TestDraftVisibility(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 

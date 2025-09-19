@@ -252,7 +252,7 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 	expectedAuth := "Bearer-API " + m.apiKey
 	if authHeader != expectedAuth {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "unauthorized",
 			Message: "Missing or invalid API key",
 		})
@@ -262,7 +262,7 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 	workspaceHeader := r.Header.Get("Publer-Workspace-Id")
 	if workspaceHeader != m.workspaceID {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Missing or invalid workspace ID",
 		})
@@ -283,7 +283,7 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 			w.WriteHeader(errResp.StatusCode)
 			if errResp.Body != nil {
-				json.NewEncoder(w).Encode(errResp.Body)
+				_ = json.NewEncoder(w).Encode(errResp.Body)
 			}
 			return
 		}
@@ -293,7 +293,7 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 	if resp, exists := m.responses[key]; exists {
 		w.WriteHeader(resp.StatusCode)
 		if resp.Body != nil {
-			json.NewEncoder(w).Encode(resp.Body)
+			_ = json.NewEncoder(w).Encode(resp.Body)
 		}
 		return
 	}
@@ -379,7 +379,7 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Default 404
 	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(ErrorResponse{
+	_ = json.NewEncoder(w).Encode(ErrorResponse{
 		Error:   "not_found",
 		Message: "Endpoint not found",
 	})
@@ -417,7 +417,7 @@ func (m *MockServer) handleListPosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ListPostsResponse{
+	_ = json.NewEncoder(w).Encode(ListPostsResponse{
 		Posts:      posts,
 		Total:      total,
 		Page:       page,
@@ -523,7 +523,7 @@ func (m *MockServer) handlePublishPost(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Failed to read request body",
 		})
@@ -533,7 +533,7 @@ func (m *MockServer) handlePublishPost(w http.ResponseWriter, r *http.Request) {
 	var requestData map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &requestData); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Invalid JSON payload",
 		})
@@ -557,7 +557,7 @@ func (m *MockServer) handlePublishPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(PublishPostResponse{
+	_ = json.NewEncoder(w).Encode(PublishPostResponse{
 		JobID: jobID,
 	})
 }
@@ -567,7 +567,7 @@ func (m *MockServer) handleBulkPublish(w http.ResponseWriter, r *http.Request, b
 	var bulkReq BulkPublishPostsRequest
 	if err := json.Unmarshal(bodyBytes, &bulkReq); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Invalid bulk publish request format",
 		})
@@ -577,7 +577,7 @@ func (m *MockServer) handleBulkPublish(w http.ResponseWriter, r *http.Request, b
 	// Check bulk operation limit
 	if m.bulkOpLimit > 0 && len(bulkReq.Posts) > m.bulkOpLimit {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: fmt.Sprintf("Bulk operation limit exceeded. Maximum %d posts allowed", m.bulkOpLimit),
 		})
@@ -594,7 +594,7 @@ func (m *MockServer) handleBulkPublish(w http.ResponseWriter, r *http.Request, b
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(BulkPublishPostsResponse{
+	_ = json.NewEncoder(w).Encode(BulkPublishPostsResponse{
 		JobID: jobID,
 	})
 }
@@ -604,7 +604,7 @@ func (m *MockServer) handleJobStatus(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 5 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Invalid job ID",
 		})
@@ -618,7 +618,7 @@ func (m *MockServer) handleJobStatus(w http.ResponseWriter, r *http.Request) {
 		index := m.jobProgressIndex[jobID]
 		if index < len(states) {
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(GetJobStatusResponse{
+			_ = json.NewEncoder(w).Encode(GetJobStatusResponse{
 				JobStatus: states[index],
 			})
 			return
@@ -628,14 +628,14 @@ func (m *MockServer) handleJobStatus(w http.ResponseWriter, r *http.Request) {
 	// Check regular job status
 	if job, exists := m.jobs[jobID]; exists {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(GetJobStatusResponse{
+		_ = json.NewEncoder(w).Encode(GetJobStatusResponse{
 			JobStatus: *job,
 		})
 		return
 	}
 
 	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(ErrorResponse{
+	_ = json.NewEncoder(w).Encode(ErrorResponse{
 		Error:   "not_found",
 		Message: "Job not found",
 	})
@@ -650,7 +650,7 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Failed to read request body",
 		})
@@ -660,7 +660,7 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 	var requestData map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &requestData); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Invalid JSON payload",
 		})
@@ -686,7 +686,7 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 	if _, hasDraft := requestData["visibility"]; hasDraft {
 		if err := json.Unmarshal(bodyBytes, &draftReq); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ErrorResponse{
+			_ = json.NewEncoder(w).Encode(ErrorResponse{
 				Error:   "bad_request",
 				Message: "Invalid draft request format",
 			})
@@ -696,7 +696,7 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 		// Validate visibility
 		if draftReq.Visibility != "draft_private" && draftReq.Visibility != "draft_public" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ErrorResponse{
+			_ = json.NewEncoder(w).Encode(ErrorResponse{
 				Error:   "bad_request",
 				Message: "Invalid visibility. Must be draft_private or draft_public",
 			})
@@ -704,7 +704,7 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(CreateDraftPostResponse{
+		_ = json.NewEncoder(w).Encode(CreateDraftPostResponse{
 			JobID: jobID,
 		})
 		return
@@ -713,7 +713,7 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 	// Otherwise, treat as schedule request
 	if err := json.Unmarshal(bodyBytes, &scheduleReq); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Invalid schedule request format",
 		})
@@ -723,7 +723,7 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 	// Validate that scheduled_at is in the future
 	if !scheduleReq.ScheduledAt.After(time.Now()) {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Scheduled time must be in the future",
 		})
@@ -731,7 +731,7 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(SchedulePostResponse{
+	_ = json.NewEncoder(w).Encode(SchedulePostResponse{
 		JobID: jobID,
 	})
 }
@@ -741,7 +741,7 @@ func (m *MockServer) handleBulkSchedule(w http.ResponseWriter, r *http.Request, 
 	var bulkReq BulkSchedulePostsRequest
 	if err := json.Unmarshal(bodyBytes, &bulkReq); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Invalid bulk schedule request format",
 		})
@@ -751,7 +751,7 @@ func (m *MockServer) handleBulkSchedule(w http.ResponseWriter, r *http.Request, 
 	// Check bulk operation limit
 	if m.bulkOpLimit > 0 && len(bulkReq.Posts) > m.bulkOpLimit {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: fmt.Sprintf("Bulk operation limit exceeded. Maximum %d posts allowed", m.bulkOpLimit),
 		})
@@ -762,7 +762,7 @@ func (m *MockServer) handleBulkSchedule(w http.ResponseWriter, r *http.Request, 
 	for i, post := range bulkReq.Posts {
 		if !post.ScheduledAt.IsZero() && !post.ScheduledAt.After(time.Now()) {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ErrorResponse{
+			_ = json.NewEncoder(w).Encode(ErrorResponse{
 				Error:   "bad_request",
 				Message: fmt.Sprintf("Post %d: Scheduled time must be in the future", i+1),
 			})
@@ -780,7 +780,7 @@ func (m *MockServer) handleBulkSchedule(w http.ResponseWriter, r *http.Request, 
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(BulkSchedulePostsResponse{
+	_ = json.NewEncoder(w).Encode(BulkSchedulePostsResponse{
 		JobID: jobID,
 	})
 }
@@ -833,7 +833,7 @@ func (m *MockServer) handleListWorkspaces(w http.ResponseWriter, r *http.Request
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ListWorkspacesResponse{
+	_ = json.NewEncoder(w).Encode(ListWorkspacesResponse{
 		Workspaces: workspaces,
 		Total:      total,
 		Page:       page,
@@ -868,7 +868,7 @@ func (m *MockServer) handleListAccounts(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ListAccountsResponse{
+	_ = json.NewEncoder(w).Encode(ListAccountsResponse{
 		Accounts:   accounts,
 		Total:      total,
 		Page:       page,
@@ -915,14 +915,14 @@ func (m *MockServer) handleGetPost(w http.ResponseWriter, r *http.Request, postI
 	for _, post := range m.posts {
 		if post.ID == postID {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(GetPostResponse{Post: post})
+			_ = json.NewEncoder(w).Encode(GetPostResponse{Post: post})
 			return
 		}
 	}
 
 	// Post not found
 	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(ErrorResponse{
+	_ = json.NewEncoder(w).Encode(ErrorResponse{
 		Error:   "not_found",
 		Message: "Post not found",
 	})
@@ -934,7 +934,7 @@ func (m *MockServer) handleUpdatePost(w http.ResponseWriter, r *http.Request, po
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Failed to read request body",
 		})
@@ -944,7 +944,7 @@ func (m *MockServer) handleUpdatePost(w http.ResponseWriter, r *http.Request, po
 	var updateReq UpdatePostRequest
 	if err := json.Unmarshal(bodyBytes, &updateReq); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Invalid JSON in request body",
 		})
@@ -966,14 +966,14 @@ func (m *MockServer) handleUpdatePost(w http.ResponseWriter, r *http.Request, po
 			}
 
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(UpdatePostResponse{Post: m.posts[i]})
+			_ = json.NewEncoder(w).Encode(UpdatePostResponse{Post: m.posts[i]})
 			return
 		}
 	}
 
 	// Post not found
 	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(ErrorResponse{
+	_ = json.NewEncoder(w).Encode(ErrorResponse{
 		Error:   "not_found",
 		Message: "Post not found",
 	})
@@ -993,7 +993,7 @@ func (m *MockServer) handleDeletePost(w http.ResponseWriter, r *http.Request, po
 	if foundIndex == -1 {
 		// Post not found
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "not_found",
 			Message: "Post not found",
 		})
@@ -1011,7 +1011,7 @@ func (m *MockServer) handleDeletePost(w http.ResponseWriter, r *http.Request, po
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(DeletePostResponse{
+	_ = json.NewEncoder(w).Encode(DeletePostResponse{
 		Success: true,
 		Message: "Post deleted successfully",
 	})
@@ -1046,7 +1046,7 @@ func (m *MockServer) handleRecurringPost(w http.ResponseWriter, r *http.Request)
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Failed to read request body",
 		})
@@ -1055,7 +1055,7 @@ func (m *MockServer) handleRecurringPost(w http.ResponseWriter, r *http.Request)
 
 	if err := json.Unmarshal(bodyBytes, &req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Invalid JSON payload",
 		})
@@ -1064,7 +1064,7 @@ func (m *MockServer) handleRecurringPost(w http.ResponseWriter, r *http.Request)
 
 	if req.Text == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Text field is required",
 		})
@@ -1073,7 +1073,7 @@ func (m *MockServer) handleRecurringPost(w http.ResponseWriter, r *http.Request)
 
 	if len(req.Accounts) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "At least one account is required",
 		})
@@ -1082,7 +1082,7 @@ func (m *MockServer) handleRecurringPost(w http.ResponseWriter, r *http.Request)
 
 	if req.Recurrence.Frequency == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Recurrence frequency is required",
 		})
@@ -1102,7 +1102,7 @@ func (m *MockServer) handleRecurringPost(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // handleAutoSchedulePost handles POST /api/v1/posts/auto-schedule
@@ -1112,7 +1112,7 @@ func (m *MockServer) handleAutoSchedulePost(w http.ResponseWriter, r *http.Reque
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Failed to read request body",
 		})
@@ -1121,7 +1121,7 @@ func (m *MockServer) handleAutoSchedulePost(w http.ResponseWriter, r *http.Reque
 
 	if err := json.Unmarshal(bodyBytes, &req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Invalid JSON payload",
 		})
@@ -1130,7 +1130,7 @@ func (m *MockServer) handleAutoSchedulePost(w http.ResponseWriter, r *http.Reque
 
 	if req.Text == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Text field is required",
 		})
@@ -1139,7 +1139,7 @@ func (m *MockServer) handleAutoSchedulePost(w http.ResponseWriter, r *http.Reque
 
 	if len(req.Accounts) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "At least one account is required",
 		})
@@ -1148,7 +1148,7 @@ func (m *MockServer) handleAutoSchedulePost(w http.ResponseWriter, r *http.Reque
 
 	if req.Slots <= 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Slots must be greater than 0",
 		})
@@ -1157,7 +1157,7 @@ func (m *MockServer) handleAutoSchedulePost(w http.ResponseWriter, r *http.Reque
 
 	if req.EndDate.Before(req.StartDate) {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "End date must be after start date",
 		})
@@ -1177,7 +1177,7 @@ func (m *MockServer) handleAutoSchedulePost(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // handleRecyclePost handles POST /api/v1/posts/recycle
@@ -1187,7 +1187,7 @@ func (m *MockServer) handleRecyclePost(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Failed to read request body",
 		})
@@ -1196,7 +1196,7 @@ func (m *MockServer) handleRecyclePost(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.Unmarshal(bodyBytes, &req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Invalid JSON payload",
 		})
@@ -1205,7 +1205,7 @@ func (m *MockServer) handleRecyclePost(w http.ResponseWriter, r *http.Request) {
 
 	if req.PostID == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Post ID is required",
 		})
@@ -1214,7 +1214,7 @@ func (m *MockServer) handleRecyclePost(w http.ResponseWriter, r *http.Request) {
 
 	if req.Frequency == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Frequency is required",
 		})
@@ -1223,7 +1223,7 @@ func (m *MockServer) handleRecyclePost(w http.ResponseWriter, r *http.Request) {
 
 	if req.MaxCount <= 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "Max count must be greater than 0",
 		})
@@ -1232,7 +1232,7 @@ func (m *MockServer) handleRecyclePost(w http.ResponseWriter, r *http.Request) {
 
 	if req.EndDate.Before(req.StartDate) {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "bad_request",
 			Message: "End date must be after start date",
 		})
@@ -1249,7 +1249,7 @@ func (m *MockServer) handleRecyclePost(w http.ResponseWriter, r *http.Request) {
 
 	if !found {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(ErrorResponse{
+		_ = json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "not_found",
 			Message: "Post not found",
 		})
@@ -1269,7 +1269,7 @@ func (m *MockServer) handleRecyclePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // SimulateScheduleGeneration creates mock scheduled posts for advanced features

@@ -81,7 +81,7 @@ func TestNewClientCustom(t *testing.T) {
 func TestClientAuthentication(t *testing.T) {
 	// Create mock server
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	server.SetResponse("GET", "/api/v1/test", 200, map[string]string{
 		"message": "success",

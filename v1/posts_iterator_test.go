@@ -13,7 +13,7 @@ import (
 
 func TestListPostsIterator(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -86,7 +86,7 @@ func TestListPostsIterator(t *testing.T) {
 
 func TestPostIteratorPagination(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -138,7 +138,7 @@ func TestPostIteratorPagination(t *testing.T) {
 
 func TestPostIteratorError(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -159,7 +159,7 @@ func TestPostIteratorError(t *testing.T) {
 
 func TestPostIteratorContext(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -205,7 +205,7 @@ func TestPostIteratorContext(t *testing.T) {
 
 func TestPostIteratorWithFilters(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -329,7 +329,7 @@ func TestPostIteratorWithFilters(t *testing.T) {
 
 func TestPostIteratorLazyLoading(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -382,7 +382,7 @@ func TestPostIteratorLazyLoading(t *testing.T) {
 
 func TestPostIteratorEmptyResult(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -403,7 +403,7 @@ func TestPostIteratorEmptyResult(t *testing.T) {
 
 func TestPostIteratorSinglePage(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 

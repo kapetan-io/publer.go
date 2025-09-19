@@ -11,7 +11,7 @@ import (
 
 func TestListWorkspaces(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -92,7 +92,7 @@ func TestListWorkspaces(t *testing.T) {
 
 func TestWorkspaceMembers(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -145,7 +145,7 @@ func TestWorkspaceMembers(t *testing.T) {
 
 func TestListWorkspacesEmpty(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 

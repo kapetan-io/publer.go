@@ -12,7 +12,7 @@ import (
 
 func TestGetPost(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -54,7 +54,7 @@ func TestGetPost(t *testing.T) {
 
 func TestUpdatePost(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -90,7 +90,7 @@ func TestUpdatePost(t *testing.T) {
 
 func TestDeletePost(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -125,7 +125,7 @@ func TestDeletePost(t *testing.T) {
 
 func TestPostNotFound(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -178,7 +178,7 @@ func TestPostNotFound(t *testing.T) {
 
 func TestUpdatePostPartialUpdates(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -236,7 +236,7 @@ func TestUpdatePostPartialUpdates(t *testing.T) {
 
 func TestPostManagementWithDifferentStates(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -292,7 +292,7 @@ func TestPostManagementWithDifferentStates(t *testing.T) {
 
 func TestPostIDValidation(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 

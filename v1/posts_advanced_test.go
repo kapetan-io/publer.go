@@ -12,7 +12,7 @@ import (
 
 func TestCreateRecurringPost(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -39,7 +39,7 @@ func TestCreateRecurringPost(t *testing.T) {
 
 func TestCreateRecurringPostWeekly(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -63,7 +63,7 @@ func TestCreateRecurringPostWeekly(t *testing.T) {
 
 func TestCreateRecurringPostValidation(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -122,7 +122,7 @@ func TestCreateRecurringPostValidation(t *testing.T) {
 
 func TestAutoSchedulePost(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -146,7 +146,7 @@ func TestAutoSchedulePost(t *testing.T) {
 
 func TestAutoSchedulePostValidation(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -212,7 +212,7 @@ func TestAutoSchedulePostValidation(t *testing.T) {
 
 func TestRecyclePost(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -241,7 +241,7 @@ func TestRecyclePost(t *testing.T) {
 
 func TestRecyclePostValidation(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 
@@ -324,7 +324,7 @@ func TestRecyclePostValidation(t *testing.T) {
 
 func TestRecurrencePatterns(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	client := server.Client()
 

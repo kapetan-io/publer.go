@@ -32,7 +32,7 @@ func waitForServer(t *testing.T, client *v1.Client, timeout time.Duration) {
 
 func TestMockServer(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	// Test basic server functionality
 	client := server.Client()
@@ -50,7 +50,7 @@ func TestMockServer(t *testing.T) {
 
 func TestMockServerSetResponse(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	server.Reset()
 
@@ -76,7 +76,7 @@ func TestMockServerSetResponse(t *testing.T) {
 
 func TestMockServerSetErrorResponse(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	server.Reset()
 
@@ -117,7 +117,7 @@ func TestMockServerSetErrorResponse(t *testing.T) {
 
 func TestMockServerJobProgression(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	server.Reset()
 
@@ -147,7 +147,7 @@ func TestMockServerJobProgression(t *testing.T) {
 
 func TestMockServerPagination(t *testing.T) {
 	server := v1.SpawnMockServer()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	server.Reset()
 
@@ -172,7 +172,7 @@ func TestMockServerPagination(t *testing.T) {
 func TestMockServerDelayAndReset(t *testing.T) {
 	server := v1.SpawnMockServer()
 	server.SetResponse("GET", "/api/v1/test", 200, map[string]string{"status": "ok"})
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	// Test delay setting
 	server.SetDelay(10 * time.Millisecond)
@@ -189,7 +189,7 @@ func TestMockServerDelayAndReset(t *testing.T) {
 	// Multiple servers can be spawned independently
 	server2 := v1.SpawnMockServer()
 	server2.SetResponse("GET", "/api/v1/test", 200, map[string]string{"status": "ok"})
-	defer server2.Stop()
+	defer func() { _ = server2.Stop() }()
 
 	client2 := server2.Client()
 	assert.NotNil(t, client2)
