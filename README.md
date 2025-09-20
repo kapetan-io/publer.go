@@ -28,8 +28,6 @@ go get github.com/kapetan-io/publer.go/v1
 
 ## Quick Start
 
-### Authentication Setup
-
 ```go
 package main
 
@@ -50,40 +48,32 @@ func main() {
         APIKey:      "your-api-key-here",
         WorkspaceID: "your-workspace-id",
     })
-    
+
     if err != nil {
         log.Fatal(err)
     }
 
+    var resp publer.PublishResponse
+    req := publer.PublishRequest{
+        Accounts: []string{"account-id-1", "account-id-2"}
+        Text:     "Hello from publer.go! 🚀",
+    }
 
-    // Your API calls here...
+    // Publish a post immediately
+    if err := client.Publish(ctx, req, &resp); err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Job ID: %s\n", resp.JobID)
+
+    // Wait for job completion
+    var result publer.JobResult
+    if err = client.WaitForJob(ctx, publer.WaitOptions{JobID: resp.JobID}, &result); err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Published posts: %v\n", result.PostIDs)
 }
-```
-
-### Publish a Post
-
-```go
-
-var resp publer.PublishResponse
-req := publer.PublishRequest{
-    Accounts: []string{"account-id-1", "account-id-2"}
-    Text: "Hello from publer.go! 🚀",
-}
-
-// Publish a post immediately
-if err := client.Publish(ctx, req, &resp); err != nil {
-    log.Fatal(err)
-}
-
-fmt.Printf("Job ID: %s\n", resp.JobID)
-
-// Wait for job completion
-var result publer.JobResult
-if err = client.WaitForJob(ctx, publer.WaitOptions{JobID: resp.JobID}, &result); err != nil {
-    log.Fatal(err)
-}
-
-fmt.Printf("Published posts: %v\n", result.PostIDs)
 ```
 
 ## Core Features
