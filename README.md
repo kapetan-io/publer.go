@@ -67,8 +67,10 @@ func main() {
     fmt.Printf("Job ID: %s\n", resp.JobID)
 
     // Wait for job completion
+	opts := publer.WaitOptions{JobID: resp.JobID}
     var result publer.JobResult
-    if err = c.WaitForJob(ctx, publer.WaitOptions{JobID: resp.JobID}, &result); err != nil {
+    
+    if err = c.WaitForJob(ctx, opts, &result); err != nil {
         log.Fatal(err)
     }
 
