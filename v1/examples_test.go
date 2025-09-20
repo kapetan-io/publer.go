@@ -52,7 +52,7 @@ func ExampleClient_PublishPost() {
 
 	// Configure mock response and job completion
 	server.Reset()
-	server.SetResponse("POST", "/api/v1/posts/schedule/publish", 200, v1.PublishPostResponse{
+	server.SetResponse("POST", "/api/v1/posts/schedule/publish", 200, v1.PublishResponse{
 		JobID: "job-123",
 	})
 	server.SetJobStatus("job-123", "completed", 100, &v1.JobResult{
@@ -60,13 +60,13 @@ func ExampleClient_PublishPost() {
 	}, "")
 
 	ctx := context.Background()
-	req := v1.PublishPostRequest{
+	req := v1.PublishRequest{
 		Text:     "Hello, world!",
 		Accounts: []string{"account-1"},
 	}
 
-	var resp v1.PublishPostResponse
-	err := client.PublishPost(ctx, req, &resp)
+	var resp v1.PublishResponse
+	err := client.Publish(ctx, req, &resp)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func ExampleClient_BulkSchedulePosts() {
 	client := server.Client()
 
 	server.Reset()
-	server.SetResponse("POST", "/api/v1/posts/schedule", 200, v1.BulkSchedulePostsResponse{
+	server.SetResponse("POST", "/api/v1/posts/schedule", 200, v1.BulkScheduleResponse{
 		JobID: "bulk-job-123",
 	})
 	server.SetJobStatus("bulk-job-123", "completed", 100, &v1.JobResult{
@@ -163,7 +163,7 @@ func ExampleClient_BulkSchedulePosts() {
 	}, "")
 
 	ctx := context.Background()
-	req := v1.BulkSchedulePostsRequest{
+	req := v1.BulkScheduleRequest{
 		Posts: []v1.BulkPost{
 			{
 				ScheduledAt: time.Now().Add(time.Hour),
@@ -178,8 +178,8 @@ func ExampleClient_BulkSchedulePosts() {
 		},
 	}
 
-	var resp v1.BulkSchedulePostsResponse
-	err := client.BulkSchedulePosts(ctx, req, &resp)
+	var resp v1.BulkScheduleResponse
+	err := client.BulkSchedule(ctx, req, &resp)
 	if err != nil {
 		log.Fatal(err)
 	}

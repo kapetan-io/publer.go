@@ -24,14 +24,14 @@ type ListPostsResponse struct {
 	TotalPages int    `json:"total_pages"`
 }
 
-// PublishPostRequest represents immediate post publishing
-type PublishPostRequest struct {
+// PublishRequest represents immediate post publishing
+type PublishRequest struct {
 	Text     string   `json:"text"`
 	Accounts []string `json:"accounts"`
 	Media    []Media  `json:"media,omitempty"`
 }
 
-// PublishPostResponse contains job ID for async processing
-type PublishPostResponse struct {
+// PublishResponse contains job ID for async processing
+type PublishResponse struct {
 	JobID string `json:"job_id"`
 }

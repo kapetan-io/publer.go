@@ -557,14 +557,14 @@ func (m *MockServer) handlePublishPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(PublishPostResponse{
+	_ = json.NewEncoder(w).Encode(PublishResponse{
 		JobID: jobID,
 	})
 }
 
 // handleBulkPublish handles bulk publishing requests
 func (m *MockServer) handleBulkPublish(w http.ResponseWriter, r *http.Request, bodyBytes []byte, postsData interface{}) {
-	var bulkReq BulkPublishPostsRequest
+	var bulkReq BulkPublishRequest
 	if err := json.Unmarshal(bodyBytes, &bulkReq); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(ErrorResponse{
@@ -594,7 +594,7 @@ func (m *MockServer) handleBulkPublish(w http.ResponseWriter, r *http.Request, b
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(BulkPublishPostsResponse{
+	_ = json.NewEncoder(w).Encode(BulkPublishResponse{
 		JobID: jobID,
 	})
 }
@@ -643,8 +643,8 @@ func (m *MockServer) handleJobStatus(w http.ResponseWriter, r *http.Request) {
 
 // handleSchedulePost handles POST /api/v1/posts/schedule
 func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) {
-	var scheduleReq SchedulePostRequest
-	var draftReq CreateDraftPostRequest
+	var scheduleReq ScheduleRequest
+	var draftReq CreateDraftRequest
 
 	// Read the entire request body
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -704,7 +704,7 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 		}
 
 		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(CreateDraftPostResponse{
+		_ = json.NewEncoder(w).Encode(CreateDraftResponse{
 			JobID: jobID,
 		})
 		return
@@ -731,14 +731,14 @@ func (m *MockServer) handleSchedulePost(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(SchedulePostResponse{
+	_ = json.NewEncoder(w).Encode(ScheduleResponse{
 		JobID: jobID,
 	})
 }
 
 // handleBulkSchedule handles bulk scheduling requests
 func (m *MockServer) handleBulkSchedule(w http.ResponseWriter, r *http.Request, bodyBytes []byte, postsData interface{}) {
-	var bulkReq BulkSchedulePostsRequest
+	var bulkReq BulkScheduleRequest
 	if err := json.Unmarshal(bodyBytes, &bulkReq); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(ErrorResponse{
@@ -780,7 +780,7 @@ func (m *MockServer) handleBulkSchedule(w http.ResponseWriter, r *http.Request, 
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(BulkSchedulePostsResponse{
+	_ = json.NewEncoder(w).Encode(BulkScheduleResponse{
 		JobID: jobID,
 	})
 }

@@ -53,7 +53,7 @@
 //	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 //	defer cancel()
 //
-//	err := client.PublishPost(ctx, req, &resp)
+//	err := client.Publish(ctx, req, &resp)
 //
 // Mock Server:
 //

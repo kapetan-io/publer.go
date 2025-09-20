@@ -16,7 +16,7 @@ func TestBulkPublishPosts(t *testing.T) {
 
 	client := server.Client()
 
-	req := v1.BulkPublishPostsRequest{
+	req := v1.BulkPublishRequest{
 		Posts: []v1.BulkPost{
 			{
 				Text:     "First bulk post",
@@ -32,10 +32,10 @@ func TestBulkPublishPosts(t *testing.T) {
 		},
 	}
 
-	var resp v1.BulkPublishPostsResponse
+	var resp v1.BulkPublishResponse
 	server.Reset()
 
-	err := client.BulkPublishPosts(context.Background(), req, &resp)
+	err := client.BulkPublish(context.Background(), req, &resp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.JobID)
 
@@ -57,7 +57,7 @@ func TestBulkSchedulePosts(t *testing.T) {
 	futureTime1 := time.Now().Add(2 * time.Hour)
 	futureTime2 := time.Now().Add(4 * time.Hour)
 
-	req := v1.BulkSchedulePostsRequest{
+	req := v1.BulkScheduleRequest{
 		Posts: []v1.BulkPost{
 			{
 				Text:        "First scheduled post",
@@ -75,10 +75,10 @@ func TestBulkSchedulePosts(t *testing.T) {
 		},
 	}
 
-	var resp v1.BulkSchedulePostsResponse
+	var resp v1.BulkScheduleResponse
 	server.Reset()
 
-	err := client.BulkSchedulePosts(context.Background(), req, &resp)
+	err := client.BulkSchedule(context.Background(), req, &resp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.JobID)
 
@@ -128,10 +128,10 @@ func TestBulkOperationLimits(t *testing.T) {
 			server.Reset()
 			server.SetBulkOperationLimit(bulkLimit)
 
-			req := v1.BulkPublishPostsRequest{Posts: test.posts}
-			var resp v1.BulkPublishPostsResponse
+			req := v1.BulkPublishRequest{Posts: test.posts}
+			var resp v1.BulkPublishResponse
 
-			err := client.BulkPublishPosts(context.Background(), req, &resp)
+			err := client.BulkPublish(context.Background(), req, &resp)
 			if test.wantErr == "" {
 				require.NoError(t, err)
 				assert.NotEmpty(t, resp.JobID)
@@ -170,11 +170,11 @@ func TestBulkPartialFailure(t *testing.T) {
 	}, "")
 
 	// Configure mock to return this job ID
-	server.SetResponse("POST", "/api/v1/posts/schedule/publish", 200, v1.BulkPublishPostsResponse{
+	server.SetResponse("POST", "/api/v1/posts/schedule/publish", 200, v1.BulkPublishResponse{
 		JobID: jobID,
 	})
 
-	req := v1.BulkPublishPostsRequest{
+	req := v1.BulkPublishRequest{
 		Posts: []v1.BulkPost{
 			{
 				Text:     "Post that succeeds",
@@ -187,8 +187,8 @@ func TestBulkPartialFailure(t *testing.T) {
 		},
 	}
 
-	var resp v1.BulkPublishPostsResponse
-	err := client.BulkPublishPosts(context.Background(), req, &resp)
+	var resp v1.BulkPublishResponse
+	err := client.BulkPublish(context.Background(), req, &resp)
 	require.NoError(t, err)
 	assert.Equal(t, jobID, resp.JobID)
 
@@ -265,10 +265,10 @@ func TestBulkSchedulePostsValidation(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			server.Reset()
 
-			req := v1.BulkSchedulePostsRequest{Posts: test.posts}
-			var resp v1.BulkSchedulePostsResponse
+			req := v1.BulkScheduleRequest{Posts: test.posts}
+			var resp v1.BulkScheduleResponse
 
-			err := client.BulkSchedulePosts(context.Background(), req, &resp)
+			err := client.BulkSchedule(context.Background(), req, &resp)
 			if test.wantErr == "" {
 				require.NoError(t, err)
 				assert.NotEmpty(t, resp.JobID)

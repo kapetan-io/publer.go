@@ -57,7 +57,6 @@ func TestListPosts(t *testing.T) {
 	assert.False(t, hasMore)
 }
 
-
 func TestGetJobStatus(t *testing.T) {
 	server := v1.SpawnMockServer()
 	defer func() { _ = server.Stop() }()
@@ -162,15 +161,15 @@ func TestPublishPost(t *testing.T) {
 
 	client := server.Client()
 
-	req := v1.PublishPostRequest{
+	req := v1.PublishRequest{
 		Accounts: []string{"account-1", "account-2"},
 		Text:     "Test post content",
 	}
 
-	var resp v1.PublishPostResponse
+	var resp v1.PublishResponse
 	server.Reset()
 
-	err := client.PublishPost(context.Background(), req, &resp)
+	err := client.Publish(context.Background(), req, &resp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.JobID)
 
@@ -190,17 +189,17 @@ func TestSchedulePost(t *testing.T) {
 
 	client := server.Client()
 
-	req := v1.SchedulePostRequest{
+	req := v1.ScheduleRequest{
 		ScheduledAt: time.Now().Add(time.Hour),
 		TimeZone:    "UTC",
 		Accounts:    []string{"account-1", "account-2"},
 		Text:        "Scheduled post content",
 	}
 
-	var resp v1.SchedulePostResponse
+	var resp v1.ScheduleResponse
 	server.Reset()
 
-	err := client.SchedulePost(context.Background(), req, &resp)
+	err := client.Schedule(context.Background(), req, &resp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.JobID)
 
@@ -221,13 +220,13 @@ func TestSchedulePostValidation(t *testing.T) {
 	client := server.Client()
 
 	for _, test := range []struct {
-		name       string
-		request    v1.SchedulePostRequest
-		wantErr    string
+		name    string
+		request v1.ScheduleRequest
+		wantErr string
 	}{
 		{
 			name: "PastScheduledTime",
-			request: v1.SchedulePostRequest{
+			request: v1.ScheduleRequest{
 				ScheduledAt: time.Now().Add(-time.Hour),
 				Accounts:    []string{"account-1"},
 				Text:        "Test post",
@@ -238,8 +237,8 @@ func TestSchedulePostValidation(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			server.Reset()
 
-			var resp v1.SchedulePostResponse
-			err := client.SchedulePost(context.Background(), test.request, &resp)
+			var resp v1.ScheduleResponse
+			err := client.Schedule(context.Background(), test.request, &resp)
 			require.Error(t, err)
 			require.ErrorContains(t, err, test.wantErr)
 		})
@@ -252,16 +251,16 @@ func TestCreateDraftPost(t *testing.T) {
 
 	client := server.Client()
 
-	req := v1.CreateDraftPostRequest{
+	req := v1.CreateDraftRequest{
 		Accounts:   []string{"account-1", "account-2"},
 		Visibility: "draft_private",
 		Text:       "Draft post content",
 	}
 
-	var resp v1.CreateDraftPostResponse
+	var resp v1.CreateDraftResponse
 	server.Reset()
 
-	err := client.CreateDraftPost(context.Background(), req, &resp)
+	err := client.CreateDraft(context.Background(), req, &resp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.JobID)
 
@@ -305,14 +304,14 @@ func TestDraftVisibility(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			server.Reset()
 
-			req := v1.CreateDraftPostRequest{
+			req := v1.CreateDraftRequest{
 				Visibility: test.visibility,
 				Accounts:   []string{"account-1"},
 				Text:       "Test draft",
 			}
 
-			var resp v1.CreateDraftPostResponse
-			err := client.CreateDraftPost(context.Background(), req, &resp)
+			var resp v1.CreateDraftResponse
+			err := client.CreateDraft(context.Background(), req, &resp)
 
 			if test.wantErr == "" {
 				require.NoError(t, err)

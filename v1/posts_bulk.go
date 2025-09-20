@@ -10,22 +10,22 @@ type BulkPost struct {
 	Media       []Media   `json:"media,omitempty"`
 }
 
-// BulkPublishPostsRequest represents bulk immediate publishing
-type BulkPublishPostsRequest struct {
+// BulkPublishRequest represents bulk immediate publishing
+type BulkPublishRequest struct {
 	Posts []BulkPost `json:"posts"`
 }
 
-// BulkPublishPostsResponse contains job ID for async processing
-type BulkPublishPostsResponse struct {
+// BulkPublishResponse contains job ID for async processing
+type BulkPublishResponse struct {
 	JobID string `json:"job_id"`
 }
 
-// BulkSchedulePostsRequest represents bulk scheduled publishing
-type BulkSchedulePostsRequest struct {
+// BulkScheduleRequest represents bulk scheduled publishing
+type BulkScheduleRequest struct {
 	Posts []BulkPost `json:"posts"`
 }
 
-// BulkSchedulePostsResponse contains job ID for async processing
-type BulkSchedulePostsResponse struct {
+// BulkScheduleResponse contains job ID for async processing
+type BulkScheduleResponse struct {
 	JobID string `json:"job_id"`
 }

@@ -44,7 +44,7 @@ func main() {
     ctx := context.Background()
 
     // Create the client
-    client, err := publer.NewClient(publer.Config{
+    c, err := publer.NewClient(publer.Config{
         APIKey:      "your-api-key-here",
         WorkspaceID: "your-workspace-id",
     })
@@ -60,7 +60,7 @@ func main() {
     }
 
     // Publish a post immediately
-    if err := client.Publish(ctx, req, &resp); err != nil {
+    if err := c.Publish(ctx, req, &resp); err != nil {
         log.Fatal(err)
     }
 
@@ -68,7 +68,7 @@ func main() {
 
     // Wait for job completion
     var result publer.JobResult
-    if err = client.WaitForJob(ctx, publer.WaitOptions{JobID: resp.JobID}, &result); err != nil {
+    if err = c.WaitForJob(ctx, publer.WaitOptions{JobID: resp.JobID}, &result); err != nil {
         log.Fatal(err)
     }
 
@@ -110,8 +110,8 @@ The client automatically handles Publer.com's rate limits (100 requests per 2 mi
 // The client will automatically retry with exponential backoff
 // when rate limits are encountered
 for i := 0; i < 200; i++ {
-    var resp publer.PublishPostResponse
-    err := client.PublishPost(ctx, publer.PublishPostRequest{
+    var resp publer.PublishResponse
+    err := client.PublishPost(ctx, publer.PublishRequest{
         Text:     fmt.Sprintf("Post %d", i+1),
         Accounts: []string{"account-1"},
     }, &resp)

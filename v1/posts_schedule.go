@@ -2,8 +2,8 @@ package v1
 
 import "time"
 
-// SchedulePostRequest represents scheduled post creation
-type SchedulePostRequest struct {
+// ScheduleRequest represents scheduled post creation
+type ScheduleRequest struct {
 	ScheduledAt time.Time `json:"scheduled_at"`
 	TimeZone    string    `json:"timezone,omitempty"`
 	Accounts    []string  `json:"accounts"`
@@ -11,20 +11,20 @@ type SchedulePostRequest struct {
 	Text        string    `json:"text"`
 }
 
-// SchedulePostResponse contains job ID for async processing
-type SchedulePostResponse struct {
+// ScheduleResponse contains job ID for async processing
+type ScheduleResponse struct {
 	JobID string `json:"job_id"`
 }
 
-// CreateDraftPostRequest represents draft post creation
-type CreateDraftPostRequest struct {
+// CreateDraftRequest represents draft post creation
+type CreateDraftRequest struct {
 	Visibility string   `json:"visibility"` // draft_private or draft_public
 	Accounts   []string `json:"accounts"`
 	Media      []Media  `json:"media,omitempty"`
 	Text       string   `json:"text"`
 }
 
-// CreateDraftPostResponse contains job ID for async processing
-type CreateDraftPostResponse struct {
+// CreateDraftResponse contains job ID for async processing
+type CreateDraftResponse struct {
 	JobID string `json:"job_id"`
 }

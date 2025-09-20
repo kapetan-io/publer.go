@@ -205,13 +205,13 @@ func (c *Client) Test(ctx context.Context) error {
 // Post Publishing Operations
 // ============================================================================
 
-// PublishPost publishes content immediately
-func (c *Client) PublishPost(ctx context.Context, request PublishPostRequest, response *PublishPostResponse) error {
+// Publish publishes content immediately
+func (c *Client) Publish(ctx context.Context, request PublishRequest, response *PublishResponse) error {
 	return c.do(ctx, "POST", "posts/schedule/publish", request, response)
 }
 
-// BulkPublishPosts publishes multiple posts immediately
-func (c *Client) BulkPublishPosts(ctx context.Context, req BulkPublishPostsRequest, resp *BulkPublishPostsResponse) error {
+// BulkPublish publishes multiple posts immediately
+func (c *Client) BulkPublish(ctx context.Context, req BulkPublishRequest, resp *BulkPublishResponse) error {
 	return c.do(ctx, "POST", "posts/schedule/publish", req, resp)
 }
 
@@ -219,18 +219,18 @@ func (c *Client) BulkPublishPosts(ctx context.Context, req BulkPublishPostsReque
 // Post Scheduling Operations
 // ============================================================================
 
-// SchedulePost schedules a post for future publication
-func (c *Client) SchedulePost(ctx context.Context, req SchedulePostRequest, resp *SchedulePostResponse) error {
+// Schedule schedules a post for future publication
+func (c *Client) Schedule(ctx context.Context, req ScheduleRequest, resp *ScheduleResponse) error {
 	return c.do(ctx, "POST", "posts/schedule", req, resp)
 }
 
-// CreateDraftPost creates a draft post
-func (c *Client) CreateDraftPost(ctx context.Context, req CreateDraftPostRequest, resp *CreateDraftPostResponse) error {
+// CreateDraft creates a draft post
+func (c *Client) CreateDraft(ctx context.Context, req CreateDraftRequest, resp *CreateDraftResponse) error {
 	return c.do(ctx, "POST", "posts/schedule", req, resp)
 }
 
-// BulkSchedulePosts schedules multiple posts
-func (c *Client) BulkSchedulePosts(ctx context.Context, req BulkSchedulePostsRequest, resp *BulkSchedulePostsResponse) error {
+// BulkSchedule schedules multiple posts
+func (c *Client) BulkSchedule(ctx context.Context, req BulkScheduleRequest, resp *BulkScheduleResponse) error {
 	return c.do(ctx, "POST", "posts/schedule", req, resp)
 }
 
