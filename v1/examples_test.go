@@ -44,7 +44,7 @@ func ExampleClient_ListPosts() {
 	// Post: 2 - Another post
 }
 
-func ExampleClient_PublishPost() {
+func ExampleClient_Publish() {
 	server := v1.SpawnMockServer()
 	defer func() { _ = server.Stop() }()
 
@@ -148,7 +148,7 @@ func ExampleClient_WaitForJob() {
 	// Posts: [post-456]
 }
 
-func ExampleClient_BulkSchedulePosts() {
+func ExampleClient_BulkSchedule() {
 	server := v1.SpawnMockServer()
 	defer func() { _ = server.Stop() }()
 
@@ -199,7 +199,7 @@ func TestExamples(t *testing.T) {
 	})
 
 	t.Run("PublishPostExample", func(t *testing.T) {
-		ExampleClient_PublishPost()
+		ExampleClient_Publish()
 	})
 
 	t.Run("GetPostsByStateExample", func(t *testing.T) {
@@ -211,6 +211,6 @@ func TestExamples(t *testing.T) {
 	})
 
 	t.Run("BulkSchedulePostsExample", func(t *testing.T) {
-		ExampleClient_BulkSchedulePosts()
+		ExampleClient_BulkSchedule()
 	})
 }
