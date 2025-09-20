@@ -3,7 +3,7 @@
 Go client library for Publer.com API
 
 [![Go Version](https://img.shields.io/github/go-mod/go-version/kapetan-io/publer.go)](https://golang.org/dl/)
-[![CI Status](https://github.com/kapetan-io/publer.go/workflows/CI/badge.svg)](https://github.com/kapetan-io.go/actions)
+[![CI Status](https://github.com/kapetan-io/publer.go/workflows/CI/badge.svg)](https://github.com/kapetan-io/publer.go/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Report Card](https://goreportcard.com/badge/github.com/kapetan-io/publer.go)](https://goreportcard.com/report/github.com/kapetan-io/publer.go)
 
