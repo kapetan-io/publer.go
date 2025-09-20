@@ -113,7 +113,7 @@ The client automatically handles Publer.com's rate limits (100 requests per 2 mi
 // when rate limits are encountered
 for i := 0; i < 200; i++ {
     var resp publer.PublishResponse
-    err := client.PublishPost(ctx, publer.PublishRequest{
+    err := client.Publish(ctx, publer.PublishRequest{
         Text:     fmt.Sprintf("Post %d", i+1),
         Accounts: []string{"account-1"},
     }, &resp)
@@ -160,8 +160,8 @@ Monitor long-running operations like post creation:
 
 ```go
 // Publish a post (returns immediately with job ID)
-var resp publer.PublishPostResponse
-err := client.PublishPost(ctx, publer.PublishPostRequest{
+var resp publer.PublishResponse
+err := client.Publish(ctx, publer.PublishRequest{
     Text:     "Async post creation",
     Accounts: []string{"account-1"},
 }, &resp)
@@ -171,9 +171,10 @@ if err != nil {
 
 // Poll job status manually
 for {
+    req := publer.GetJobStatusRequest{JobID: resp.JobID}
     var status publer.JobStatus
-    err := client.GetJobStatus(ctx, publer.GetJobStatusRequest{JobID: resp.JobID}, &status)
-    if err != nil {
+
+    if err := client.GetJobStatus(ctx, req, &status); err != nil {
         log.Fatal(err)
     }
 
@@ -225,8 +226,8 @@ err = client.DeletePost(ctx, publer.DeletePostRequest{ID: "post-id"}, &deleteRes
 #### Scheduling
 ```go
 // Schedule a post for later
-var resp publer.SchedulePostResponse
-err := client.SchedulePost(ctx, publer.SchedulePostRequest{
+var resp publer.ScheduleResponse
+err := client.Schedule(ctx, publer.ScheduleRequest{
     Text:        "Scheduled post",
     Accounts:    []string{"account-id"},
     ScheduledAt: time.Now().Add(2 * time.Hour),
@@ -239,8 +240,8 @@ Handle multiple posts efficiently:
 
 ```go
 // Schedule multiple posts at once
-var resp publer.BulkSchedulePostsResponse
-err := client.BulkSchedulePosts(ctx, publer.BulkSchedulePostsRequest{
+var resp publer.BulkScheduleResponse
+err := client.BulkSchedule(ctx, publer.BulkScheduleRequest{
     Posts: []publer.BulkPost{
         {Text: "Post 1", Accounts: accounts, ScheduledAt: time.Now().Add(time.Hour)},
         {Text: "Post 2", Accounts: accounts, ScheduledAt: time.Now().Add(2 * time.Hour)},
@@ -264,8 +265,8 @@ fmt.Printf("Created posts: %v\n", result.PostIDs)
 
 #### Recurring Posts
 ```go
-var resp publer.CreateRecurringPostResponse
-err := client.CreateRecurringPost(ctx, publer.CreateRecurringPostRequest{
+var resp publer.RecurringPostResponse
+err := client.CreateRecurringPost(ctx, publer.RecurringPostRequest{
     Text:      "Daily motivation! 💪",
     Accounts:  accounts,
     Frequency: "daily",
@@ -275,7 +276,7 @@ err := client.CreateRecurringPost(ctx, publer.CreateRecurringPostRequest{
 
 #### Auto-Scheduling
 ```go
-var resp publer.AutoSchedulePostResponse
+var resp publer.AutoScheduleResponse
 err := client.AutoSchedulePost(ctx, publer.AutoScheduleRequest{
     Text:     "Auto-scheduled post",
     Accounts: accounts,
@@ -307,8 +308,8 @@ accountIter.Next(ctx, &accountPage)
 The library provides detailed error types for different scenarios:
 
 ```go
-var resp publer.PublishPostResponse
-err := client.PublishPost(ctx, publer.PublishPostRequest{
+var resp publer.PublishResponse
+err := client.Publish(ctx, publer.PublishRequest{
     Text:     "Test post",
     Accounts: []string{"account-1"},
 }, &resp)
