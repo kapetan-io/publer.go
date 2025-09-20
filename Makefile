@@ -19,8 +19,9 @@ cover:
 
 
 .PHONY: lint
-lint: $(LINT) ## Run Go linter
-	$(LINT) run -v ./...
+lint: ## Run Go linter
+	@which golangci-lint > /dev/null || $(MAKE) $(LINT)
+	golangci-lint run -v ./...
 
 .PHONY: tidy
 tidy:

@@ -26,5 +26,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
+    - name: Cache golangci-lint
+      uses: actions/cache@v4
+      with:
+        path: ~/go/bin/golangci-lint
+        key: ${{ runner.os }}-golangci-lint-v1.61.0
+        restore-keys: |
+          ${{ runner.os }}-golangci-lint-
+
+    - name: Install golangci-lint
+      run: |
+        if [ ! -f ~/go/bin/golangci-lint ]; then
+          curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ~/go/bin v1.61.0
+        fi
+        echo "~/go/bin" >> $GITHUB_PATH
+
     - name: Run CI
       run: make ci
